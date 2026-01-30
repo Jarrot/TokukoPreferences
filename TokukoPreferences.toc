@@ -1,7 +1,15 @@
-## Interface: 120000, 120001
+## Interface: 110007
 ## Title: TokukoPreferences
-## Notes: Performs /oom on leaving combat if mana < threshold, with configurable options.
+## Notes: Modular preferences addon for various WoW quality-of-life features
 ## Author: Jarrot
 ## Version: @project-version@
-## SavedVariables: TokukoPreferencesDB
-TokukoPreferences.lua
+## SavedVariables: TokukoPDB
+
+# Core (must load first - creates namespace)
+Core.lua
+
+# Modules (can load in any order)
+ManaModule.lua
+
+# Settings (must load after modules)
+Settings.lua

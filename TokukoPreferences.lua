@@ -166,9 +166,5 @@ function CreateTokukoPreferencesOptions()
   -- 3) Threshold slider
   AddThresholdSlider()
 
-  -- Footer
-  local header = category:CreateInitializer()
-  header:SetParentInitializer(category)
-  
   return category
 end
