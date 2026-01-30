@@ -1,4 +1,3 @@
-
 -- TokukoPreferences
 -- Performs /oom when leaving combat if mana < threshold.
 -- Settings panel includes: Enable, Threshold %, Only in Group/Instance.
@@ -126,39 +125,31 @@ function CreateTokukoPreferencesOptions()
   -- Helper to bind boolean checkbox to SavedVariables
   local function AddCheckbox(varKey, label, tooltip, defaultOn)
     local variable = "TokukoPreferences_" .. varKey
-    local default = defaultOn and 1 or 0
-    local init = Settings.RegisterAddOnSetting(category, variable, variable, Settings.VarType.Boolean, default)
-    init:SetValue(TokukoPreferencesDB[varKey] and 1 or 0)
-    Settings.SetOnValueChangedCallback(variable, function(_, newValue)
-      TokukoPreferencesDB[varKey] = (newValue == 1)
-    end)
-    local cb = Settings.CreateCheckbox(category, label, tooltip)
-    Settings.InitBindableControl(cb, init)
+    local default = defaultOn and true or false
+    
+    -- Register setting with the correct API signature
+    local setting = Settings.RegisterAddOnSetting(category, variable, varKey, TokukoPreferencesDB, type(default), default)
+    
+    -- Create checkbox control
+    local initializer = Settings.CreateCheckbox(category, setting, tooltip)
+    initializer:SetParentInitializer(category)
   end
 
   -- Helper to add threshold slider (1–100)
   local function AddThresholdSlider()
     local variable = "TokukoPreferences_Threshold"
     local default = DEFAULTS.threshold
-    local init = Settings.RegisterAddOnSetting(category, variable, variable, Settings.VarType.Number, default)
-    init:SetValue(Clamp(tonumber(TokukoPreferencesDB.threshold) or default, 1, 100))
-    Settings.SetOnValueChangedCallback(variable, function(_, newValue)
-      TokukoPreferencesDB.threshold = Clamp(math.floor(newValue + 0.5), 1, 100)
-    end)
-
-    local options, _ = Settings.CreateSliderOptions(1, 100, 1)
+    
+    -- Register setting with the correct API signature
+    local setting = Settings.RegisterAddOnSetting(category, variable, "threshold", TokukoPreferencesDB, type(default), default)
+    
+    local options = Settings.CreateSliderOptions(1, 100, 1)
     options:SetLabelFormatter(MinimalSliderWithSteppersMixin.Label.Right, function(v)
       return string.format("%d%%", v)
     end)
 
-    local slider = Settings.CreateSlider(
-      category,
-      "Mana Threshold",
-      "Trigger /oom when mana is below this percent on exiting combat.",
-      init,
-      options
-    )
-    Settings.InitBindableControl(slider, init)
+    local initializer = Settings.CreateSlider(category, setting, options, "Trigger /oom when mana is below this percent on exiting combat.")
+    initializer:SetParentInitializer(category)
   end
 
   -- 1) Enabled checkbox
@@ -176,8 +167,8 @@ function CreateTokukoPreferencesOptions()
   AddThresholdSlider()
 
   -- Footer
-  Settings.CreateSectionHeader(category, "Behavior")
-  Settings.AddMessageToCategory(category, "Performs the /oom emote when you leave combat and are below the configured mana threshold. Respects the group-only setting.")
-
+  local header = category:CreateInitializer()
+  header:SetParentInitializer(category)
+  
   return category
 end
