@@ -1,0 +1,8 @@
+
+# WoW Addon GitHub Ignore
+Thumbs.db
+.DS_Store
+*.bak
+.idea/
+.vscode/
+*.swp

@@ -1,0 +1,8 @@
+
+## Interface: 110000
+## Title: TokukoPreferences
+## Notes: Performs /oom on leaving combat if mana < threshold, with configurable options.
+## Author: Jarrot
+## Version: @project-version@
+## SavedVariables: TokukoPreferencesDB
+TokukoPreferences.lua
