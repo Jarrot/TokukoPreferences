@@ -53,14 +53,41 @@ end
 
 local function TryEmote()
   local db = TokukoPDB.Mana
-  if not db or not db.enabled then return end
-  if db.onlyInGroup and not InGroupContext() then return end
-  if not IsManaUser() then return end
-  if UnitIsDeadOrGhost("player") or UnitInVehicle("player") then return end
+  
+  print("|cff00ff00[TokukoP Debug]|r Checking mana after combat...")
+  print("  Enabled:", db and db.enabled or "nil")
+  print("  OnlyInGroup:", db and db.onlyInGroup or "nil")
+  print("  InGroup:", InGroupContext())
+  
+  if not db or not db.enabled then 
+    print("  Result: Disabled")
+    return 
+  end
+  
+  if db.onlyInGroup and not InGroupContext() then 
+    print("  Result: Not in group (required)")
+    return 
+  end
+  
+  if not IsManaUser() then 
+    print("  Result: Not a mana user")
+    return 
+  end
+  
+  if UnitIsDeadOrGhost("player") or UnitInVehicle("player") then 
+    print("  Result: Dead or in vehicle")
+    return 
+  end
   
   local mp = GetManaPercent()
-  if mp < (db.threshold or ManaModule.DEFAULTS.threshold) then
+  local threshold = db.threshold or ManaModule.DEFAULTS.threshold
+  print("  Mana:", string.format("%.1f%%", mp), "/ Threshold:", threshold .. "%")
+  
+  if mp < threshold then
+    print("  Result: |cffff0000Triggering /oom!|r")
     DoEmote("OOM")
+  else
+    print("  Result: Mana above threshold")
   end
 end
 

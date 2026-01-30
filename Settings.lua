@@ -8,87 +8,77 @@ local TokukoP = TokukoP
 -- Settings Panel Creation
 -- ===============================
 function TokukoP.CreateSettingsPanel()
-  local category = Settings.RegisterVerticalLayoutCategory("TokukoPreferences")
+  local category, layout = Settings.RegisterVerticalLayoutCategory("TokukoPreferences")
   
   -- ===============================
   -- Mana Module Settings
   -- ===============================
-  local function CreateManaSettings()
-    -- Helper to add checkbox
-    local function AddCheckbox(varKey, label, tooltip, defaultValue)
-      local settingVar = "TokukoPref_Mana_" .. varKey
-      
-      local setting = Settings.RegisterAddOnSetting(
-        category,
-        settingVar,
-        varKey,
-        TokukoPDB.Mana,
-        type(defaultValue),
-        defaultValue
-      )
-      setting:SetName(label)
-      
-      local initializer = Settings.CreateCheckbox(category, setting, tooltip)
-      initializer:SetParentInitializer(category)
-    end
+  
+  -- Enabled checkbox
+  do
+    local variable = "TokukoPref_Mana_enabled"
+    local variableKey = "enabled"
+    local name = "Enable Mana Alerts"
+    local defaultValue = true
     
-    -- Helper to add slider
-    local function AddSlider(varKey, label, tooltip, min, max, step, defaultValue)
-      local settingVar = "TokukoPref_Mana_" .. varKey
-      
-      local setting = Settings.RegisterAddOnSetting(
-        category,
-        settingVar,
-        varKey,
-        TokukoPDB.Mana,
-        type(defaultValue),
-        defaultValue
-      )
-      setting:SetName(label)
-      
-      local options = Settings.CreateSliderOptions(min, max, step)
-      options:SetLabelFormatter(MinimalSliderWithSteppersMixin.Label.Right, function(v)
-        return string.format("%d%%", v)
-      end)
-      
-      local initializer = Settings.CreateSlider(category, setting, options, tooltip)
-      initializer:SetParentInitializer(category)
-    end
-    
-    -- Mana section header
-    Settings.CreateSectionHeader(category, "Mana Management")
-    
-    -- Add settings
-    AddCheckbox(
-      "enabled",
-      "Enable Mana Alerts",
-      "Toggle mana alerts on/off.",
-      TokukoP.modules.Mana.DEFAULTS.enabled
+    local setting = Settings.RegisterAddOnSetting(
+      category,
+      variable,
+      variableKey,
+      TokukoPDB.Mana,
+      type(defaultValue),
+      name,
+      defaultValue
     )
     
-    AddCheckbox(
-      "onlyInGroup",
-      "Only in Group/Instance",
-      "Only perform /oom when you are in a party, raid, or instance group.",
-      TokukoP.modules.Mana.DEFAULTS.onlyInGroup
-    )
-    
-    AddSlider(
-      "threshold",
-      "Mana Threshold",
-      "Trigger /oom when mana is below this percent after leaving combat.",
-      1,
-      100,
-      1,
-      TokukoP.modules.Mana.DEFAULTS.threshold
-    )
+    Settings.CreateCheckbox(category, setting, "Toggle mana alerts on/off.")
   end
   
-  -- Create all module settings
-  CreateManaSettings()
+  -- Only in Group checkbox
+  do
+    local variable = "TokukoPref_Mana_onlyInGroup"
+    local variableKey = "onlyInGroup"
+    local name = "Only in Group/Instance"
+    local defaultValue = true
+    
+    local setting = Settings.RegisterAddOnSetting(
+      category,
+      variable,
+      variableKey,
+      TokukoPDB.Mana,
+      type(defaultValue),
+      name,
+      defaultValue
+    )
+    
+    Settings.CreateCheckbox(category, setting, "Only perform /oom when you are in a party, raid, or instance group.")
+  end
   
-  -- Footer
-  Settings.CreateSectionHeader(category, "About")
+  -- Threshold slider
+  do
+    local variable = "TokukoPref_Mana_threshold"
+    local variableKey = "threshold"
+    local name = "Mana Threshold for /oom"
+    local defaultValue = 20
+    
+    local setting = Settings.RegisterAddOnSetting(
+      category,
+      variable,
+      variableKey,
+      TokukoPDB.Mana,
+      type(defaultValue),
+      name,
+      defaultValue
+    )
+    
+    local options = Settings.CreateSliderOptions(1, 100, 1)
+    options:SetLabelFormatter(MinimalSliderWithSteppersMixin.Label.Right, function(v)
+      return string.format("%d%%", v)
+    end)
+    
+    Settings.CreateSlider(category, setting, options, "Trigger /oom when mana is below this percent after leaving combat.")
+  end
   
-  return category
+  Settings.RegisterAddOnCategory(category)
+  return category, layout
 end

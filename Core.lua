@@ -36,6 +36,9 @@ end
 local eventFrame = CreateFrame("Frame")
 eventFrame:RegisterEvent("PLAYER_LOGIN")
 
+-- Store category ID for slash command
+local settingsCategoryID = nil
+
 eventFrame:SetScript("OnEvent", function(self, event, ...)
   if event == "PLAYER_LOGIN" then
     -- Initialize database
@@ -52,7 +55,7 @@ eventFrame:SetScript("OnEvent", function(self, event, ...)
     if Settings and Settings.RegisterAddOnCategory then
       local category = TokukoP.CreateSettingsPanel()
       if category then
-        Settings.RegisterAddOnCategory(category)
+        settingsCategoryID = category:GetID()
       end
     end
     
@@ -81,5 +84,9 @@ end)
 -- ===============================
 SLASH_TOKUKOP1 = "/tokukop"
 SlashCmdList["TOKUKOP"] = function()
-  Settings.OpenToCategory("TokukoPreferences")
+  if settingsCategoryID then
+    Settings.OpenToCategory(settingsCategoryID)
+  else
+    print("|cffff0000TokukoPreferences:|r Settings not available yet.")
+  end
 end
