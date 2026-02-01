@@ -14,12 +14,7 @@ TokukoPreferences/
 ```
 
 ## Current Features
-
-### Mana Module
-- Automatically performs `/oom` emote when leaving combat with low mana
-- Configurable threshold (1-100%)
-- Option to only trigger when in group/instance
-- Smart debouncing to prevent spam
+Work in progress, low priority. Goal is to replace things WeakAuras did earlier, those still possible eventhough introduction of 'secrets'
 
 ## Adding New Modules
 
