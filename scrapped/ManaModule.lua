@@ -26,10 +26,32 @@ local function IsManaUser()
 end
 
 local function GetManaPercent()
-  local cur = UnitPower("player", 0)
-  local max = UnitPowerMax("player", 0)
-  if not max or max == 0 then return 100 end
-  return (cur / max) * 100
+  -- Try getting from player frame power bar (might not be secret)
+  if PlayerFrame and PlayerFrame.manabar then
+    local _, max = PlayerFrame.manabar:GetMinMaxValues()
+    local cur = PlayerFrame.manabar:GetValue()
+    if max and max > 0 and cur then
+      return (cur / max) * 100
+    end
+  end
+  
+  -- Try the direct API
+  local max = UnitPowerMax("player", Enum.PowerType.Mana or 0)
+  if not max or max == 0 then return nil end
+  
+  local cur = UnitPower("player", Enum.PowerType.Mana or 0)
+  if not cur then return nil end
+  
+  -- Try the calculation in a pcall
+  local success, result = pcall(function()
+    return (cur / max) * 100
+  end)
+  
+  if success then
+    return result
+  end
+  
+  return nil  -- Can't calculate
 end
 
 local function InGroupContext()
@@ -55,9 +77,9 @@ local function TryEmote()
   local db = TokukoPDB.Mana
   
   print("|cff00ff00[TokukoP Debug]|r Checking mana after combat...")
-  print("  Enabled:", db and db.enabled or "nil")
-  print("  OnlyInGroup:", db and db.onlyInGroup or "nil")
-  print("  InGroup:", InGroupContext())
+  print("  Enabled:", tostring(db and db.enabled))
+  print("  OnlyInGroup:", tostring(db and db.onlyInGroup))
+  print("  InGroup:", tostring(InGroupContext()))
   
   if not db or not db.enabled then 
     print("  Result: Disabled")
@@ -80,14 +102,32 @@ local function TryEmote()
   end
   
   local mp = GetManaPercent()
-  local threshold = db.threshold or ManaModule.DEFAULTS.threshold
-  print("  Mana:", string.format("%.1f%%", mp), "/ Threshold:", threshold .. "%")
   
-  if mp < threshold then
-    print("  Result: |cffff0000Triggering /oom!|r")
+  if not mp then
+    print("  Result: Cannot read mana (secret value restriction)")
+    return
+  end
+  
+  local threshold = db.threshold or ManaModule.DEFAULTS.threshold
+  
+  print("  Raw mp value:", tostring(mp), "type:", type(mp))
+  
+  -- Convert to string to work with secret values, then parse
+  local mpStr = string.format("%.1f", mp)
+  print("  After string.format:", mpStr)
+  
+  local mpNum = tonumber(mpStr)
+  print("  After tonumber:", tostring(mpNum), "type:", type(mpNum))
+  print("  Threshold:", threshold, "type:", type(threshold))
+  
+  print("  Mana:", mpStr .. "%", "/ Threshold:", threshold .. "%")
+  
+  if mpNum and mpNum < threshold then
+    print("  Comparison result: BELOW threshold - triggering /oom!")
     DoEmote("OOM")
   else
-    print("  Result: Mana above threshold")
+    print("  Comparison result: above threshold or mpNum is nil")
+    print("  mpNum:", tostring(mpNum), "threshold:", tostring(threshold))
   end
 end
 
@@ -118,7 +158,10 @@ end
 function ManaModule.OnEvent(event, ...)
   if event == "PLAYER_REGEN_ENABLED" then
     if ShouldTrigger() then
-      TryEmote()
+      -- Small delay to let combat restrictions clear
+      C_Timer.After(0.1, function()
+        TryEmote()
+      end)
     end
   end
 end
