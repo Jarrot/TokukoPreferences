@@ -36,36 +36,30 @@ end
 local eventFrame = CreateFrame("Frame")
 eventFrame:RegisterEvent("PLAYER_LOGIN")
 
--- Store category ID for slash command
-local settingsCategoryID = nil
-
 eventFrame:SetScript("OnEvent", function(self, event, ...)
   if event == "PLAYER_LOGIN" then
     -- Initialize database
     TokukoPDB = TokukoPDB or {}
-    
+
     -- Initialize all modules
     for name, module in pairs(TokukoP.modules) do
       if module.Initialize then
         module.Initialize()
       end
     end
-    
-    -- Create settings UI
-    if Settings and Settings.RegisterAddOnCategory then
-      local category = TokukoP.CreateSettingsPanel()
-      if category then
-        settingsCategoryID = category:GetID()
-      end
+
+    -- Create settings UI (may return nil if custom window approach is used)
+    if TokukoP.CreateSettingsPanel then
+      TokukoP.CreateSettingsPanel()
     end
-    
+
     -- Let modules register their events
     for name, module in pairs(TokukoP.modules) do
       if module.RegisterEvents then
         module.RegisterEvents(self)
       end
     end
-    
+
     -- Switch to runtime event handler
     self:SetScript("OnEvent", function(_, evt, ...)
       for name, module in pairs(TokukoP.modules) do
@@ -74,19 +68,7 @@ eventFrame:SetScript("OnEvent", function(self, event, ...)
         end
       end
     end)
-    
-    print("|cff00ff00TokukoPreferences|r loaded. Type |cffffffff/tokukop|r for settings.")
+
+    print("|cff00ff00TokukoPreferences|r loaded. Type |cffffffff/tp|r for settings.")
   end
 end)
-
--- ===============================
--- Slash Command
--- ===============================
-SLASH_TOKUKOP1 = "/tokukop"
-SlashCmdList["TOKUKOP"] = function()
-  if settingsCategoryID then
-    Settings.OpenToCategory(settingsCategoryID)
-  else
-    print("|cffff0000TokukoPreferences:|r Settings not available yet.")
-  end
-end

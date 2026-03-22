@@ -1,122 +1,193 @@
 -- Settings.lua
--- Handles the settings panel UI
+-- Custom settings window opened via /tp (or /tokukop)
 
 local ADDON_NAME = ...
 local TokukoP = TokukoP
 
 -- ===============================
--- Settings Panel Creation
+-- UI Helpers
 -- ===============================
-function TokukoP.CreateSettingsPanel()
-  local category, layout = Settings.RegisterVerticalLayoutCategory("TokukoPreferences")
 
-  -- ===============================
-  -- Drinking Module Settings
-  -- ===============================
+local function MakeCheckbox(parent, label, tooltip, getValue, setValue, yOffset)
+  local cb = CreateFrame("CheckButton", nil, parent, "UICheckButtonTemplate")
+  cb:SetPoint("TOPLEFT", 20, yOffset)
+  cb:SetChecked(getValue())
+  cb:SetScript("OnClick", function(self)
+    setValue(self:GetChecked())
+  end)
 
-  -- Enabled checkbox
-  do
-    local setting = Settings.RegisterAddOnSetting(
-      category,
-      "TokukoPref_Drinking_enabled",
-      "enabled",
-      TokukoPDB.Drinking,
-      Settings.VarType.Boolean,
-      "Enable Drinking Announcements",
-      true
-    )
-    Settings.CreateCheckbox(category, setting, "Toggle drinking announcements on/off.")
+  local text = cb:CreateFontString(nil, "OVERLAY", "GameFontNormal")
+  text:SetPoint("LEFT", cb, "RIGHT", 4, 0)
+  text:SetText(label)
+
+  if tooltip then
+    cb:SetScript("OnEnter", function(self)
+      GameTooltip:SetOwner(self, "ANCHOR_RIGHT")
+      GameTooltip:SetText(tooltip, nil, nil, nil, nil, true)
+      GameTooltip:Show()
+    end)
+    cb:SetScript("OnLeave", function() GameTooltip:Hide() end)
   end
 
-  -- Only in Group checkbox
-  do
-    local setting = Settings.RegisterAddOnSetting(
-      category,
-      "TokukoPref_Drinking_onlyInGroup",
-      "onlyInGroup",
-      TokukoPDB.Drinking,
-      Settings.VarType.Boolean,
-      "Only in Group/Instance",
-      true
-    )
-    Settings.CreateCheckbox(category, setting, "Only announce when you are in a party, raid, or instance group.")
+  return cb
+end
+
+local function MakeEditBox(parent, label, tooltip, getValue, setValue, yOffset)
+  local lbl = parent:CreateFontString(nil, "OVERLAY", "GameFontNormal")
+  lbl:SetPoint("TOPLEFT", 20, yOffset)
+  lbl:SetText(label)
+
+  local eb = CreateFrame("EditBox", nil, parent, "InputBoxTemplate")
+  eb:SetSize(300, 22)
+  eb:SetPoint("TOPLEFT", lbl, "BOTTOMLEFT", 4, -4)
+  eb:SetAutoFocus(false)
+  eb:SetMaxLetters(200)
+  eb:SetText(getValue())
+
+  local function Save(self)
+    setValue(self:GetText())
+    self:ClearFocus()
+  end
+  eb:SetScript("OnEnterPressed", Save)
+  eb:SetScript("OnEditFocusLost", Save)
+
+  if tooltip then
+    eb:SetScript("OnEnter", function(self)
+      GameTooltip:SetOwner(self, "ANCHOR_RIGHT")
+      GameTooltip:SetText(tooltip, nil, nil, nil, nil, true)
+      GameTooltip:Show()
+    end)
+    eb:SetScript("OnLeave", function() GameTooltip:Hide() end)
   end
 
-  -- Announce Complete checkbox
-  do
-    local setting = Settings.RegisterAddOnSetting(
-      category,
-      "TokukoPref_Drinking_announceComplete",
-      "announceComplete",
-      TokukoPDB.Drinking,
-      Settings.VarType.Boolean,
-      "Announce When Done",
-      true
-    )
-    Settings.CreateCheckbox(category, setting, "Announce when you finish eating/drinking (after 8+ seconds).")
-  end
+  return lbl, eb
+end
 
-  -- Start message text input
-  do
-    local defaultValue = "eating nam nam"
-    local setting = Settings.RegisterProxySetting(
-      category,
-      "TokukoPref_Drinking_message",
-      Settings.VarType.String,
-      "Start Message",
-      defaultValue,
-      function() return TokukoPDB.Drinking.message or defaultValue end,
-      function(value) TokukoPDB.Drinking.message = value end
-    )
-    Settings.CreateEditBox(category, setting, "Message announced when you start eating or drinking.")
-  end
+local function MakeSectionHeader(parent, text, yOffset)
+  local header = parent:CreateFontString(nil, "OVERLAY", "GameFontNormalLarge")
+  header:SetPoint("TOPLEFT", 14, yOffset)
+  header:SetText("|cffffcc00" .. text .. "|r")
+  return header
+end
 
-  -- Complete message text input
-  do
-    local defaultValue = "nam nam done!"
-    local setting = Settings.RegisterProxySetting(
-      category,
-      "TokukoPref_Drinking_completeMessage",
-      Settings.VarType.String,
-      "Complete Message",
-      defaultValue,
-      function() return TokukoPDB.Drinking.completeMessage or defaultValue end,
-      function(value) TokukoPDB.Drinking.completeMessage = value end
-    )
-    Settings.CreateEditBox(category, setting, "Message announced when you finish eating or drinking.")
-  end
+local function MakeDivider(parent, yOffset)
+  local line = parent:CreateTexture(nil, "ARTWORK")
+  line:SetColorTexture(0.4, 0.4, 0.4, 0.6)
+  line:SetSize(340, 1)
+  line:SetPoint("TOPLEFT", 14, yOffset)
+  return line
+end
 
-  -- ===============================
-  -- Tooltip Module Settings
-  -- ===============================
-  do
-    local setting = Settings.RegisterAddOnSetting(
-      category,
-      "TokukoPref_Tooltip_enabled",
-      "enabled",
-      TokukoPDB.Tooltip,
-      Settings.VarType.Boolean,
-      "ElvUI: Tooltip Follows Cursor Out of Combat",
-      true
-    )
+-- ===============================
+-- Window Creation
+-- ===============================
 
-    setting:SetValueChangedCallback(function(_, value)
-      TokukoPDB.Tooltip.enabled = value
-      if value and ElvUI then
+local settingsFrame = nil
+
+local function BuildSettingsWindow()
+  local f = CreateFrame("Frame", "TokukoPSettingsFrame", UIParent, "BasicFrameTemplateWithInset")
+  f:SetSize(380, 460)
+  f:SetPoint("CENTER")
+  f:SetMovable(true)
+  f:EnableMouse(true)
+  f:RegisterForDrag("LeftButton")
+  f:SetScript("OnDragStart", f.StartMoving)
+  f:SetScript("OnDragStop", f.StopMovingOrSizing)
+  f:SetClampedToScreen(true)
+  f:Hide()
+
+  f.TitleText:SetText("TokukoPreferences")
+
+  local y = -34
+
+  -- ── Drinking ────────────────────────────────────────────
+  MakeSectionHeader(f, "Drinking Announcements", y)
+  y = y - 26
+
+  MakeCheckbox(f, "Enable Drinking Announcements",
+    "Toggle drinking announcements on/off.",
+    function() return TokukoPDB.Drinking.enabled end,
+    function(v) TokukoPDB.Drinking.enabled = v end,
+    y)
+  y = y - 30
+
+  MakeCheckbox(f, "Only in Group / Instance",
+    "Only announce when you are in a party, raid, or instance.",
+    function() return TokukoPDB.Drinking.onlyInGroup end,
+    function(v) TokukoPDB.Drinking.onlyInGroup = v end,
+    y)
+  y = y - 30
+
+  MakeCheckbox(f, "Announce When Done",
+    "Announce when you finish eating/drinking (after 8+ seconds).",
+    function() return TokukoPDB.Drinking.announceComplete end,
+    function(v) TokukoPDB.Drinking.announceComplete = v end,
+    y)
+  y = y - 34
+
+  MakeEditBox(f, "Start Message:",
+    "Sent to group chat when you start eating or drinking.",
+    function() return TokukoPDB.Drinking.message end,
+    function(v) TokukoPDB.Drinking.message = v end,
+    y)
+  y = y - 54
+
+  MakeEditBox(f, "Complete Message:",
+    "Sent to group chat when you finish eating or drinking.",
+    function() return TokukoPDB.Drinking.completeMessage end,
+    function(v) TokukoPDB.Drinking.completeMessage = v end,
+    y)
+  y = y - 44
+
+  -- ── Divider ─────────────────────────────────────────────
+  MakeDivider(f, y)
+  y = y - 14
+
+  -- ── Tooltip ─────────────────────────────────────────────
+  MakeSectionHeader(f, "Tooltip (requires ElvUI)", y)
+  y = y - 26
+
+  MakeCheckbox(f, "Cursor Anchor Out of Combat",
+    "Tooltip follows cursor when out of combat.\nSnaps to your fixed ElvUI anchor position when in combat.",
+    function() return TokukoPDB.Tooltip and TokukoPDB.Tooltip.enabled end,
+    function(v)
+      TokukoPDB.Tooltip.enabled = v
+      if v and ElvUI then
         local E = unpack(ElvUI)
         if E and E.db and E.db.tooltip then
           E.db.tooltip.cursorAnchor = not InCombatLockdown()
         end
       end
-    end)
+    end,
+    y)
 
-    Settings.CreateCheckbox(
-      category,
-      setting,
-      "Requires ElvUI. Tooltip follows your mouse cursor when out of combat, and uses your fixed ElvUI anchor position when in combat."
-    )
+  return f
+end
+
+-- ===============================
+-- Public API
+-- ===============================
+
+function TokukoP.OpenSettings()
+  -- Rebuild each time so checkboxes and edit boxes always show current DB values
+  if settingsFrame then
+    settingsFrame:Hide()
+    settingsFrame = nil
   end
+  settingsFrame = BuildSettingsWindow()
+  settingsFrame:Show()
+end
 
-  Settings.RegisterAddOnCategory(category)
-  return category, layout
+-- Stub so Core.lua doesn't error on the return values
+function TokukoP.CreateSettingsPanel()
+  return nil, nil
+end
+
+-- ===============================
+-- Slash Commands
+-- ===============================
+SLASH_TOKUKOP1 = "/tokukop"
+SLASH_TOKUKOP2 = "/tp"
+SlashCmdList["TOKUKOP"] = function()
+  TokukoP.OpenSettings()
 end
