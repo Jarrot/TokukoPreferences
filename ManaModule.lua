@@ -12,8 +12,9 @@ TokukoP.modules.Mana = ManaModule
 -- ===============================
 ManaModule.DEFAULTS = {
   enabled = true,
-  threshold = 20,    -- announce at or below this % mana
+  threshold = 20,
   onlyInGroup = true,
+  debug = true,  -- set to false once working
 }
 
 -- ===============================
@@ -28,18 +29,16 @@ local function PlayerUsesMana()
 end
 
 local function GetManaPercent()
-  -- UnitPowerMax is non-secret for player in 12.0, but UnitPower (current) is still secret.
-  -- Use pcall around the arithmetic to avoid taint crashes.
   local max = UnitPowerMax("player", Enum.PowerType.Mana)
-  if not max or max == 0 then return 100 end
+  if not max or max == 0 then return nil, "max is zero or nil" end
 
-  local ok, pct = pcall(function()
+  local ok, result = pcall(function()
     local current = UnitPower("player", Enum.PowerType.Mana)
     return (current / max) * 100
   end)
 
-  if ok then return pct end
-  return 100  -- If we can't read it, assume full mana (safe default, won't false-trigger)
+  if ok then return result, nil end
+  return nil, "UnitPower is secret"
 end
 
 local function InGroupContext()
@@ -55,19 +54,36 @@ local function CheckMana()
     return
   end
 
-  if not PlayerUsesMana() then return end
+  if not PlayerUsesMana() then
+    if db.debug then print("[TokukoP Mana] Player does not use mana, skipping.") end
+    return
+  end
 
-  local pct = GetManaPercent()
+  local pct, err = GetManaPercent()
+
+  if db.debug then
+    if err then
+      print("[TokukoP Mana] Could not read mana: " .. err)
+    else
+      print(string.format("[TokukoP Mana] Mana: %.1f%% (threshold: %d%%, isOOM: %s)",
+        pct, db.threshold, tostring(isOOM)))
+    end
+  end
+
+  if not pct then return end  -- couldn't read mana safely, bail
+
   local threshold = db.threshold or ManaModule.DEFAULTS.threshold
   local inValidContext = not db.onlyInGroup or InGroupContext()
 
   if pct <= threshold and not isOOM then
     isOOM = true
+    if db.debug then print("[TokukoP Mana] Triggering OOM emote!") end
     if inValidContext then
-      DoEmote("oom")
+      DoEmote("OOM")  -- must be uppercase
     end
   elseif pct > threshold and isOOM then
     isOOM = false
+    if db.debug then print("[TokukoP Mana] Recovered from OOM.") end
   end
 end
 
