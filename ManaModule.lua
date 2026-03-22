@@ -20,21 +20,26 @@ ManaModule.DEFAULTS = {
 -- Helper Functions
 -- ===============================
 
-local isOOM = false  -- track state to avoid spamming
+local isOOM = false
 
 local function PlayerUsesMana()
-  -- UnitPowerType returns Enum.PowerType as first value
-  -- Enum.PowerType.Mana == 0
   local powerType = UnitPowerType("player")
   return powerType == Enum.PowerType.Mana
 end
 
 local function GetManaPercent()
-  -- UnitPowerMax no longer returns secrets for player in 12.0
-  local current = UnitPower("player", Enum.PowerType.Mana)
+  -- UnitPowerMax is non-secret for player in 12.0, but UnitPower (current) is still secret.
+  -- Use pcall around the arithmetic to avoid taint crashes.
   local max = UnitPowerMax("player", Enum.PowerType.Mana)
   if not max or max == 0 then return 100 end
-  return (current / max) * 100
+
+  local ok, pct = pcall(function()
+    local current = UnitPower("player", Enum.PowerType.Mana)
+    return (current / max) * 100
+  end)
+
+  if ok then return pct end
+  return 100  -- If we can't read it, assume full mana (safe default, won't false-trigger)
 end
 
 local function InGroupContext()
@@ -50,12 +55,11 @@ local function CheckMana()
     return
   end
 
-  -- Only relevant for mana-using classes
   if not PlayerUsesMana() then return end
 
-  local inValidContext = not db.onlyInGroup or InGroupContext()
   local pct = GetManaPercent()
   local threshold = db.threshold or ManaModule.DEFAULTS.threshold
+  local inValidContext = not db.onlyInGroup or InGroupContext()
 
   if pct <= threshold and not isOOM then
     isOOM = true
@@ -63,7 +67,6 @@ local function CheckMana()
       DoEmote("oom")
     end
   elseif pct > threshold and isOOM then
-    -- Recovered, reset so we can announce again if we drop low again
     isOOM = false
   end
 end
@@ -83,7 +86,6 @@ end
 function ManaModule.OnEvent(event, ...)
   if event == "UNIT_POWER_UPDATE" then
     local unit, powerType = ...
-    -- Only react to mana updates for the player
     if unit == "player" and powerType == "MANA" then
       CheckMana()
     end
