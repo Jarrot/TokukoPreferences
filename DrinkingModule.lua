@@ -19,64 +19,48 @@ DrinkingModule.DEFAULTS = {
 }
 
 -- ===============================
--- Helper Functions
+-- State
 -- ===============================
 
 local isDrinking = false
 local drinkStartTime = 0
+local drinkAuraInstanceID = nil  -- track which specific aura instance is our drink buff
 
--- Name patterns for food/drink detection (only checked when aura is safe)
+-- ===============================
+-- Helper Functions
+-- ===============================
+
 local DRINK_NAME_PATTERNS = { "food", "drink", "refreshment", "eating", "drinking" }
 local WELLFED_PATTERN = "well fed"
 
-local function TryReadName(auraData)
-  -- Use pcall as a last-resort safety net against secret string access
+local function IsDrinkAura(auraData)
+  if not auraData then return false, false end
+
+  local instanceID = auraData.auraInstanceID
+  local isSecret = instanceID and C_Secrets and
+                   C_Secrets.ShouldUnitAuraInstanceBeSecret("player", instanceID)
+  if isSecret then return false, false end
+
+  -- spellId is always safe
+  local spellId = auraData.spellId
+
+  -- name requires pcall
   local ok, nameLower = pcall(function()
     return auraData.name and auraData.name:lower() or nil
   end)
-  if ok then return nameLower end
-  return nil
-end
 
-local function HasDrinkBuff()
-  -- Never read aura fields in combat - they may be secret/tainted
-  -- You can't drink in combat anyway so this is safe to skip
-  if InCombatLockdown() then return false, false end
-
-  local hasDrink = false
-  local hasWellFed = false
-  local i = 1
-
-  while true do
-    local auraData = C_UnitAuras.GetAuraDataByIndex("player", i, "HELPFUL")
-    if not auraData then break end
-
-    -- Check if this aura's fields are secret before touching them
-    local instanceID = auraData.auraInstanceID
-    local isSecret = instanceID and C_Secrets and
-                     C_Secrets.ShouldUnitAuraInstanceBeSecret("player", instanceID)
-
-    if not isSecret then
-      local nameLower = TryReadName(auraData)
-      if nameLower then
-        if nameLower:find(WELLFED_PATTERN) then
-          hasWellFed = true
-        else
-          for _, pattern in ipairs(DRINK_NAME_PATTERNS) do
-            if nameLower:find(pattern) then
-              hasDrink = true
-              break
-            end
-          end
-        end
+  if ok and nameLower then
+    if nameLower:find(WELLFED_PATTERN) then
+      return false, true  -- well fed, not actively eating
+    end
+    for _, pattern in ipairs(DRINK_NAME_PATTERNS) do
+      if nameLower:find(pattern) then
+        return true, false
       end
     end
-
-    if hasDrink then break end
-    i = i + 1
   end
 
-  return hasDrink, hasWellFed
+  return false, false
 end
 
 local function InGroupContext()
@@ -97,38 +81,56 @@ local function SendToChat(message)
   end
 end
 
-local function AnnounceIfDrinking()
+-- ===============================
+-- Aura Event Handlers
+-- ===============================
+
+local function OnAurasAdded(addedAuras)
+  if isDrinking then return end  -- already tracking a drink, ignore new adds
+
   local db = TokukoPDB.Drinking
-  if not db or not db.enabled then
-    isDrinking = false
-    return
-  end
+  for _, auraData in ipairs(addedAuras) do
+    local isDrink, _ = IsDrinkAura(auraData)
+    if isDrink then
+      isDrinking = true
+      drinkStartTime = GetTime()
+      drinkAuraInstanceID = auraData.auraInstanceID
 
-  local hasDrinkBuff, hasWellFed = HasDrinkBuff()
-  local inValidContext = not db.onlyInGroup or InGroupContext()
-
-  if hasDrinkBuff and not isDrinking then
-    if inValidContext then
-      SendToChat(db.message or DrinkingModule.DEFAULTS.message)
-    end
-    isDrinking = true
-    drinkStartTime = GetTime()
-
-  elseif not hasDrinkBuff and isDrinking then
-    local timeElapsed = GetTime() - drinkStartTime
-    if db.announceComplete and inValidContext then
-      if timeElapsed >= 8 or hasWellFed then
-        SendToChat(db.completeMessage or DrinkingModule.DEFAULTS.completeMessage)
+      if db.enabled and (not db.onlyInGroup or InGroupContext()) then
+        SendToChat(db.message or DrinkingModule.DEFAULTS.message)
       end
+      return  -- only need to find one drink buff
     end
-    isDrinking = false
-    drinkStartTime = 0
+  end
+end
+
+local function OnAurasRemoved(removedAuraInstanceIDs)
+  if not isDrinking then return end  -- not drinking, nothing to check
+
+  local db = TokukoPDB.Drinking
+  for _, instanceID in ipairs(removedAuraInstanceIDs) do
+    if instanceID == drinkAuraInstanceID then
+      -- Our specific drink buff was removed
+      local timeElapsed = GetTime() - drinkStartTime
+
+      if db.enabled and db.announceComplete and (not db.onlyInGroup or InGroupContext()) then
+        if timeElapsed >= 8 then
+          SendToChat(db.completeMessage or DrinkingModule.DEFAULTS.completeMessage)
+        end
+      end
+
+      isDrinking = false
+      drinkStartTime = 0
+      drinkAuraInstanceID = nil
+      return
+    end
   end
 end
 
 -- ===============================
 -- Module Interface
 -- ===============================
+
 function DrinkingModule.Initialize()
   TokukoPDB.Drinking = TokukoPDB.Drinking or {}
   TokukoP.MergeDefaults(TokukoPDB.Drinking, DrinkingModule.DEFAULTS)
@@ -140,9 +142,20 @@ end
 
 function DrinkingModule.OnEvent(event, ...)
   if event == "UNIT_AURA" then
-    local unit = ...
-    if unit == "player" then
-      AnnounceIfDrinking()
+    -- Ignore all aura events in combat - you can't eat/drink in combat
+    if InCombatLockdown() then return end
+
+    local unit, updateInfo = ...
+    if unit ~= "player" or not updateInfo then return end
+
+    -- Only process adds if not already drinking
+    if not isDrinking and updateInfo.addedAuras then
+      OnAurasAdded(updateInfo.addedAuras)
+    end
+
+    -- Only process removes if we are tracking a drink buff
+    if isDrinking and updateInfo.removedAuraInstanceIDs then
+      OnAurasRemoved(updateInfo.removedAuraInstanceIDs)
     end
   end
 end
