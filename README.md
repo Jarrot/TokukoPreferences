@@ -32,6 +32,17 @@ Settings are stored in `TokukoPDB`, organized by module:
 
 ---
 
+## Not Possible in 12.0
+
+### Mana / OOM Alert
+Reading player mana via `UnitPower` is permanently blocked in 12.0 — it returns a secret value
+that crashes any addon attempting arithmetic on it. Blizzard explicitly stated that primary
+resources (mana, health) will remain secret indefinitely to prevent combat automation.
+`UnitPowerMax` is readable but `UnitPower` (current value) is not, making a percentage
+calculation impossible. This module has been dropped until Blizzard provides a safe API.
+
+---
+
 ## Adding New Modules
 
 ### 1. Create `NewModule.lua`
@@ -60,28 +71,26 @@ NewModule.DEFAULTS = {
 
 -- SAFE AURA READING (WoW 12.0+)
 -- Always use this pattern when reading aura data.
--- Never read aura fields in combat - they may be secret/tainted.
--- Never index a value without checking it's not secret first.
 local function SafeReadAuras()
-  if InCombatLockdown() then return end  -- Can't be affected by most auras in combat anyway
+  if InCombatLockdown() then return end
 
   local i = 1
   while true do
     local auraData = C_UnitAuras.GetAuraDataByIndex("player", i, "HELPFUL")
     if not auraData then break end
 
-    -- Check secret status using auraInstanceID (always safe to read)
     local instanceID = auraData.auraInstanceID
     local isSecret = instanceID and C_Secrets and
                      C_Secrets.ShouldUnitAuraInstanceBeSecret("player", instanceID)
 
     if not isSecret then
-      -- Safe to read aura fields now, but still use pcall for name string access
+      -- spellId is always safe to read
+      local spellId = auraData.spellId
+
+      -- name requires pcall since it may be a secret string
       local ok, nameLower = pcall(function()
         return auraData.name and auraData.name:lower() or nil
       end)
-
-      local spellId = auraData.spellId  -- spell IDs are never secret
 
       if ok and nameLower then
         -- use nameLower here
@@ -104,7 +113,6 @@ function NewModule.Initialize()
 end
 
 function NewModule.RegisterEvents(frame)
-  -- Register events here, e.g:
   -- frame:RegisterEvent("SOME_EVENT")
   -- frame:RegisterUnitEvent("UNIT_AURA", "player")
 end
@@ -130,32 +138,42 @@ Settings.lua
 
 ### 3. Add settings in `Settings.lua`
 
-Follow the existing Drinking or Tooltip section pattern using `Settings.RegisterAddOnSetting` for checkboxes and `Settings.RegisterProxySetting` for strings/numbers. Or just add them to the custom `/tp` window using `MakeCheckbox` / `MakeEditBox`.
+Follow the existing Drinking or Tooltip section pattern using `MakeCheckbox` / `MakeEditBox`
+in the `/tp` window.
 
 ---
 
 ## WoW 12.0+ Development Rules
 
-Always check https://warcraft.wiki.gg/wiki/Patch_12.0.0/API_changes before using any API that touches auras, combat, or unit data. These rules apply to every module:
+Always check https://warcraft.wiki.gg/wiki/Patch_12.0.0/API_changes before using any API
+that touches auras, unit data, or resources. These rules apply to every module:
+
+### Secret Values — What Is and Isn't Readable
+| Data | Secret? | Safe approach |
+|---|---|---|
+| `UnitPower` (current mana/health) | ✅ Always secret | Not possible — drop the feature |
+| `UnitPowerMax` | ❌ Safe for player | Read directly |
+| `auraData.auraInstanceID` | ❌ Always safe | Read directly |
+| `auraData.spellId` | ❌ Always safe | Read directly |
+| `auraData.name` | ✅ May be secret | `pcall` around `:lower()` / `:find()` |
+| Other aura fields | ✅ May be secret | Check `C_Secrets` first, then `pcall` |
 
 ### Aura Safety
 - **Never use `GetBuffDataByIndex`** — removed in 12.0, use `C_UnitAuras.GetAuraDataByIndex(unit, index, "HELPFUL")`
-- **Always check `InCombatLockdown()` first** — if you don't need to run in combat, bail out early
-- **Always check `C_Secrets.ShouldUnitAuraInstanceBeSecret(unit, instanceID)`** before reading any aura field other than `auraInstanceID`
-- **Always use `pcall`** when calling string methods (`:lower()`, `:find()` etc.) on aura name fields — secret strings crash on indexed access
-- **`spellId` and `auraInstanceID` are never secret** — safe to read without checks
-- **`auraData.name` and other fields may be secret** — always guard them
+- **Always check `InCombatLockdown()` first** — bail out early if you don't need to run in combat
+- **Always check `C_Secrets.ShouldUnitAuraInstanceBeSecret(unit, instanceID)`** before reading any aura field other than `auraInstanceID` and `spellId`
+- **Always `pcall` string methods** on aura name fields — secret strings crash on `:lower()`, `:find()` etc.
 
 ### Combat Safety
-- **Never automate combat actions** — Blizzard's addon restrictions block this and it's ban-worthy
-- **Use `PLAYER_REGEN_DISABLED` / `PLAYER_REGEN_ENABLED`** for entering/leaving combat detection — these events are stable and unchanged in 12.0
-- **`InCombatLockdown()`** is always safe to call and is your best guard for skipping logic that shouldn't run in combat
+- **Never automate combat actions** — blocked by Blizzard and ban-worthy
+- **Use `PLAYER_REGEN_DISABLED` / `PLAYER_REGEN_ENABLED`** for combat state detection — stable and unchanged in 12.0
+- **`InCombatLockdown()`** is always safe and is your best guard
 
-### General API
-- **Always check the 12.0 API changes page** before using any API you're not 100% sure is current
-- **Prefer spellID over name matching** where possible — spell IDs are stable and never secret
-- **Use `pcall` defensively** around any string operations on data sourced from the game engine
-- **`C_Secrets` may not exist on all clients** — always guard with `C_Secrets and C_Secrets.SomeFunction()` before calling it
+### General
+- **Always check the 12.0 API changes page first** before using any API you're unsure about
+- **`C_Secrets` may not exist on all clients** — always guard: `C_Secrets and C_Secrets.SomeFunction()`
+- **Emote tokens must be uppercase** — `DoEmote("OOM")` not `DoEmote("oom")`
+- **`pcall` defensively** around any string or arithmetic operations on engine-sourced data
 
 ---
 
