@@ -4,7 +4,6 @@
 local ADDON_NAME = ...
 local TokukoP = TokukoP
 
--- Create module
 local DrinkingModule = {}
 TokukoP.modules.Drinking = DrinkingModule
 
@@ -26,66 +25,55 @@ DrinkingModule.DEFAULTS = {
 local isDrinking = false
 local drinkStartTime = 0
 
--- Known food/drink spell IDs (primary detection method - spell IDs are never secret)
-local DRINK_SPELL_IDS = {
-  [430]    = true,  -- Drink
-  [433]    = true,  -- Food
-  [1137]   = true,  -- Drink (higher level)
-  [192002] = true,  -- Food & Drink
-  [167152] = true,  -- Refreshment
-  [193397] = true,  -- Refreshment (alternate)
-  [430752] = true,  -- Dreambound Refreshment (Dragonflight+)
-  [459284] = true,  -- Well-Fed (The War Within)
-}
-
--- Name patterns used only when aura is NOT secret (out of combat, non-instance)
+-- Name patterns for food/drink detection (only checked when aura is safe)
 local DRINK_NAME_PATTERNS = { "food", "drink", "refreshment", "eating", "drinking" }
 local WELLFED_PATTERN = "well fed"
 
+local function TryReadName(auraData)
+  -- Use pcall as a last-resort safety net against secret string access
+  local ok, nameLower = pcall(function()
+    return auraData.name and auraData.name:lower() or nil
+  end)
+  if ok then return nameLower end
+  return nil
+end
+
 local function HasDrinkBuff()
+  -- Never read aura fields in combat - they may be secret/tainted
+  -- You can't drink in combat anyway so this is safe to skip
+  if InCombatLockdown() then return false, false end
+
   local hasDrink = false
   local hasWellFed = false
   local i = 1
 
   while true do
-    -- GetAuraDataByIndex replaces GetBuffDataByIndex in 12.0
     local auraData = C_UnitAuras.GetAuraDataByIndex("player", i, "HELPFUL")
     if not auraData then break end
 
+    -- Check if this aura's fields are secret before touching them
     local instanceID = auraData.auraInstanceID
+    local isSecret = instanceID and C_Secrets and
+                     C_Secrets.ShouldUnitAuraInstanceBeSecret("player", instanceID)
 
-    -- AuraInstanceIDs are never secret, so we can safely check this
-    if instanceID and C_Secrets.ShouldUnitAuraInstanceBeSecret("player", instanceID) then
-      -- This aura's fields are secret — skip name/spellId checks on it
-      i = i + 1
-    else
-      local spellId = auraData.spellId
-
-      -- SpellID check first (most reliable, never secret for food/drink)
-      if spellId and DRINK_SPELL_IDS[spellId] then
-        hasDrink = true
-      else
-        -- Name check only when safe (aura is not secret)
-        local name = auraData.name
-        if name and not issecretvalue(name) then
-          local nameLower = name:lower()
-          if nameLower:find(WELLFED_PATTERN) then
-            hasWellFed = true
-          else
-            for _, pattern in ipairs(DRINK_NAME_PATTERNS) do
-              if nameLower:find(pattern) then
-                hasDrink = true
-                break
-              end
+    if not isSecret then
+      local nameLower = TryReadName(auraData)
+      if nameLower then
+        if nameLower:find(WELLFED_PATTERN) then
+          hasWellFed = true
+        else
+          for _, pattern in ipairs(DRINK_NAME_PATTERNS) do
+            if nameLower:find(pattern) then
+              hasDrink = true
+              break
             end
           end
         end
       end
-
-      i = i + 1
     end
 
     if hasDrink then break end
+    i = i + 1
   end
 
   return hasDrink, hasWellFed

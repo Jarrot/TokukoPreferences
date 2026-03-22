@@ -10,6 +10,7 @@ Core.lua
 
 # Modules (can load in any order)
 DrinkingModule.lua
+ManaModule.lua
 TooltipModule.lua
 
 # Settings (must load after modules)

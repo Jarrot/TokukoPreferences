@@ -63,6 +63,46 @@ local function MakeEditBox(parent, label, tooltip, getValue, setValue, yOffset)
   return lbl, eb
 end
 
+local function MakeSlider(parent, label, tooltip, min, max, step, getValue, setValue, yOffset)
+  local lbl = parent:CreateFontString(nil, "OVERLAY", "GameFontNormal")
+  lbl:SetPoint("TOPLEFT", 20, yOffset)
+  lbl:SetText(label)
+
+  local valueLabel = parent:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
+  valueLabel:SetPoint("LEFT", lbl, "RIGHT", 6, 0)
+  valueLabel:SetText(getValue() .. "%")
+
+  local slider = CreateFrame("Slider", nil, parent, "OptionsSliderTemplate")
+  slider:SetSize(280, 16)
+  slider:SetPoint("TOPLEFT", lbl, "BOTTOMLEFT", 4, -8)
+  slider:SetMinMaxValues(min, max)
+  slider:SetValueStep(step)
+  slider:SetObeyStepOnDrag(true)
+  slider:SetValue(getValue())
+
+  -- Hide the default low/high labels and set our own
+  slider.Low:SetText(min .. "%")
+  slider.High:SetText(max .. "%")
+  slider.Text:SetText("")
+
+  slider:SetScript("OnValueChanged", function(self, value)
+    value = math.floor(value + 0.5)
+    setValue(value)
+    valueLabel:SetText(value .. "%")
+  end)
+
+  if tooltip then
+    slider:SetScript("OnEnter", function(self)
+      GameTooltip:SetOwner(self, "ANCHOR_RIGHT")
+      GameTooltip:SetText(tooltip, nil, nil, nil, nil, true)
+      GameTooltip:Show()
+    end)
+    slider:SetScript("OnLeave", function() GameTooltip:Hide() end)
+  end
+
+  return lbl, slider
+end
+
 local function MakeSectionHeader(parent, text, yOffset)
   local header = parent:CreateFontString(nil, "OVERLAY", "GameFontNormalLarge")
   header:SetPoint("TOPLEFT", 14, yOffset)
@@ -86,7 +126,7 @@ local settingsFrame = nil
 
 local function BuildSettingsWindow()
   local f = CreateFrame("Frame", "TokukoPSettingsFrame", UIParent, "BasicFrameTemplateWithInset")
-  f:SetSize(380, 460)
+  f:SetSize(380, 590)
   f:SetPoint("CENTER")
   f:SetMovable(true)
   f:EnableMouse(true)
@@ -143,6 +183,36 @@ local function BuildSettingsWindow()
   MakeDivider(f, y)
   y = y - 14
 
+  -- ── Mana ────────────────────────────────────────────────
+  MakeSectionHeader(f, "Mana (OOM Alert)", y)
+  y = y - 26
+
+  MakeCheckbox(f, "Enable OOM Alert",
+    "Performs /oom emote when mana drops below the threshold.",
+    function() return TokukoPDB.Mana.enabled end,
+    function(v) TokukoPDB.Mana.enabled = v end,
+    y)
+  y = y - 30
+
+  MakeCheckbox(f, "Only in Group / Instance",
+    "Only emote when you are in a party, raid, or instance.",
+    function() return TokukoPDB.Mana.onlyInGroup end,
+    function(v) TokukoPDB.Mana.onlyInGroup = v end,
+    y)
+  y = y - 34
+
+  MakeSlider(f, "Mana Threshold:",
+    "Trigger the OOM emote at or below this percentage of mana.",
+    5, 50, 1,
+    function() return TokukoPDB.Mana.threshold end,
+    function(v) TokukoPDB.Mana.threshold = v end,
+    y)
+  y = y - 50
+
+  -- ── Divider ─────────────────────────────────────────────
+  MakeDivider(f, y)
+  y = y - 14
+
   -- ── Tooltip ─────────────────────────────────────────────
   MakeSectionHeader(f, "Tooltip (requires ElvUI)", y)
   y = y - 26
@@ -169,7 +239,6 @@ end
 -- ===============================
 
 function TokukoP.OpenSettings()
-  -- Rebuild each time so checkboxes and edit boxes always show current DB values
   if settingsFrame then
     settingsFrame:Hide()
     settingsFrame = nil
@@ -178,7 +247,6 @@ function TokukoP.OpenSettings()
   settingsFrame:Show()
 end
 
--- Stub so Core.lua doesn't error on the return values
 function TokukoP.CreateSettingsPanel()
   return nil, nil
 end
