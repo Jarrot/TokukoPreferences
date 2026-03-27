@@ -169,22 +169,31 @@ local function PositionFrames()
   if meterFrame1 then
     local w1 = (db.dualEmbed and meterFrame2)
                and math.floor(pw * TokukoP.Clamp(db.splitRatio, 0.2, 0.8))
-               or pw
-    ForceDetailsSize(meterFrame1, w1, ph)
+               or (pw - 1)
+    -- Shift frame UP by titleBar height so hidden title is above panel top
+    -- and bar content starts flush with the tab strip
+    local titleH1 = (meterFrame1.titleBar and meterFrame1.titleBar:GetHeight()) or 0
+    ForceDetailsSize(meterFrame1, w1, ph + titleH1)
     meterFrame1:ClearAllPoints()
-    meterFrame1:SetPoint("TOPLEFT",    panelFrame,     "TOPLEFT",        0, yOff)
+    meterFrame1:SetPoint("TOPLEFT",    panelFrame,     "TOPLEFT",        0, yOff + titleH1)
     meterFrame1:SetPoint("BOTTOMLEFT", botAnchorFrame, botAnchorPoint,   0, botOffset)
     meterFrame1:SetWidth(w1)
+    if meterFrame1.floatingframe then meterFrame1.floatingframe:Hide() end
+    -- Lock the window so users can't accidentally drag it out
+    if meterFrame1.isLocked ~= nil then meterFrame1.isLocked = true end
   end
 
   if db.dualEmbed and meterFrame2 then
     local w1 = math.floor(pw * TokukoP.Clamp(db.splitRatio, 0.2, 0.8))
-    local w2 = pw - w1
-    ForceDetailsSize(meterFrame2, w2, ph)
+    local w2 = pw - w1 - 1
+    local titleH2 = (meterFrame2.titleBar and meterFrame2.titleBar:GetHeight()) or 0
+    ForceDetailsSize(meterFrame2, w2, ph + titleH2)
     meterFrame2:ClearAllPoints()
-    meterFrame2:SetPoint("TOPRIGHT",    panelFrame,     "TOPRIGHT",        0, yOff)
-    meterFrame2:SetPoint("BOTTOMRIGHT", botAnchorFrame, botAnchorPointR,   0, botOffset)
+    meterFrame2:SetPoint("TOPRIGHT",    panelFrame,     "TOPRIGHT",        -1, yOff + titleH2)
+    meterFrame2:SetPoint("BOTTOMRIGHT", botAnchorFrame, botAnchorPointR,   -1, botOffset)
     meterFrame2:SetWidth(w2)
+    if meterFrame2.floatingframe then meterFrame2.floatingframe:Hide() end
+    if meterFrame2.isLocked ~= nil then meterFrame2.isLocked = true end
   end
 end
 
@@ -217,7 +226,11 @@ end
 
 local function TryHideChrome(frame)
   if not frame then return end
-  if frame.titleBar and frame.titleBar.Hide then frame.titleBar:Hide(); return end
+  -- Title bar
+  if frame.titleBar and frame.titleBar.Hide then frame.titleBar:Hide() end
+  -- Border frame (creates rounded corners, extends outside frame bounds)
+  if frame.border and frame.border.Hide then frame.border:Hide() end
+  -- Skada / generic fallback
   local name = frame:GetName()
   local bar = frame.title or frame.TitleBar
               or (name and _G[name .. "TitleBar"])
@@ -226,7 +239,8 @@ end
 
 local function TryShowChrome(frame)
   if not frame then return end
-  if frame.titleBar and frame.titleBar.Show then frame.titleBar:Show(); return end
+  if frame.titleBar and frame.titleBar.Show then frame.titleBar:Show() end
+  if frame.border  and frame.border.Show  then frame.border:Show()  end
   local name = frame:GetName()
   local bar = frame.title or frame.TitleBar
               or (name and _G[name .. "TitleBar"])
@@ -332,10 +346,14 @@ local function DoUnembed()
 
   if meterFrame1 then
     TryShowChrome(meterFrame1)
+    if meterFrame1.floatingframe then meterFrame1.floatingframe:Show() end
+    if meterFrame1.isLocked ~= nil then meterFrame1.isLocked = false end
     RestoreOriginalPosition(meterFrame1, 1)
   end
   if meterFrame2 then
     TryShowChrome(meterFrame2)
+    if meterFrame2.floatingframe then meterFrame2.floatingframe:Show() end
+    if meterFrame2.isLocked ~= nil then meterFrame2.isLocked = false end
     RestoreOriginalPosition(meterFrame2, 2)
     meterFrame2 = nil
   end
@@ -423,65 +441,10 @@ SlashCmdList["TPEMBED"] = function()
   EmbedModule.Toggle()
 end
 
-SLASH_TPSCAN1 = "/tpscan"
-SlashCmdList["TPSCAN"] = function()
-  print("|cff00ccffTokukoP Scan:|r Looking for Details frames...")
-  for i = 1, 5 do
-    local f = _G["DetailsBaseFrame" .. i]
-    if f and f.IsObjectType and f:IsObjectType("Frame") then
-      print("  FOUND: DetailsBaseFrame" .. i .. " size="
-            .. f:GetWidth() .. "x" .. f:GetHeight())
-    end
-  end
-  if Details then
-    for i = 1, 5 do
-      local ok, inst = pcall(function() return Details:GetInstance(i) end)
-      if ok and inst then
-        local bf = inst.baseframe
-        print("  GetInstance(" .. i .. ").baseframe = "
-              .. (bf and (bf:GetName() or "found") or "nil"))
-      end
-    end
-  end
-  print("|cff00ccffTokukoP Scan:|r Done.")
-end
-
-SLASH_TPGAP1 = "/tpgap"
-SlashCmdList["TPGAP"] = function()
-  local f1 = _G["DetailsBaseFrame1"]
-  local f2 = _G["DetailsBaseFrame2"]
-  local bar = _G["RightChatDataPanel"]
-  local panel = _G["RightChatPanel"]
-  if panel then
-    local _, _, _, _, py = panel:GetPoint(1)
-    print("Panel top Y: " .. tostring(py) .. "  h=" .. panel:GetHeight())
-  end
-  if bar then
-    local _, _, _, _, by = bar:GetPoint(1)
-    print("DataBar top Y: " .. tostring(by) .. "  h=" .. bar:GetHeight())
-  end
-  if f1 then
-    local _, _, _, _, fy = f1:GetPoint(1)
-    local fh = f1:GetHeight()
-    print("Frame1 top Y: " .. tostring(fy) .. "  h=" .. fh .. "  bottom=" .. tostring(fy - fh))
-    if bar then
-      local _, _, _, _, by = bar:GetPoint(1)
-      print("Gap frame1-to-bar: " .. tostring((fy - fh) - by))
-    end
-  end
-  if f2 then
-    local _, _, _, _, fy = f2:GetPoint(1)
-    local fh = f2:GetHeight()
-    print("Frame2 top Y: " .. tostring(fy) .. "  h=" .. fh .. "  bottom=" .. tostring(fy - fh))
-    if bar then
-      local _, _, _, _, by = bar:GetPoint(1)
-      print("Gap frame2-to-bar: " .. tostring((fy - fh) - by))
-    end
-  end
-end
-
-SLASH_TPDEBUG1 = "/tpdebug"
-SlashCmdList["TPDEBUG"] = function()
+-- ===============================
+-- Public debug function (called by DebugModule if loaded)
+-- ===============================
+function EmbedModule.PrintDebug()
   local db = TokukoPDB.Embed or {}
   print("|cff00ccffTokukoP Debug:|r")
   print("  embedded=" .. tostring(embedded)
@@ -518,11 +481,11 @@ SlashCmdList["TPDEBUG"] = function()
           .. (_G["DetailsBaseFrame" .. tostring(db.window1)] and "EXISTS" or "nil"))
     print("  DetailsBaseFrame" .. tostring(db.window2) .. "="
           .. (_G["DetailsBaseFrame" .. tostring(db.window2)] and "EXISTS" or "nil"))
-    print("  window1 frame=" .. (f1 and (f1:GetName() or "found") or "NIL"))
-    print("  window2 frame=" .. (f2 and (f2:GetName() or "found") or "NIL"))
+    print("  window1=" .. (f1 and (f1:GetName() or "found") or "NIL"))
+    print("  window2=" .. (f2 and (f2:GetName() or "found") or "NIL"))
   end
   local btn = _G["RightChatToggleButton"]
-  print("  RightChatToggleButton=" .. (btn and "found" or "nil")
+  print("  ToggleButton=" .. (btn and "found" or "nil")
         .. "  hooked=" .. tostring(toggleButtonHooked))
   print("  InCombatLockdown=" .. tostring(InCombatLockdown()))
 end

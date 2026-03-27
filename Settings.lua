@@ -172,11 +172,10 @@ local function BuildSettingsWindow()
   addonBtn:SetPoint("LEFT", addonLabel, "RIGHT", 8, 0)
   addonBtn:SetText(TokukoPDB.Embed and TokukoPDB.Embed.meterAddon or "Details")
   addonBtn:SetScript("OnClick", function(self)
-    local db = TokukoPDB.Embed
-    -- Only Details and Skada support full embed (resize + reparent)
-    -- Blizzard meter is Edit Mode controlled and cannot be reliably resized
-    db.meterAddon = db.meterAddon == "Details" and "Skada" or "Details"
-    self:SetText(db.meterAddon)
+    -- Details is the only fully supported embed addon for 12.0
+    -- (Skada removed: unmaintained in 12.0; Blizzard meter: not resizable)
+    TokukoPDB.Embed.meterAddon = "Details"
+    self:SetText("Details")
   end)
   y = y - 30
 
