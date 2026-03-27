@@ -60,16 +60,19 @@ local function ClassifyAura(auraData)
   return nil
 end
 
+-- LE_PARTY_CATEGORY_INSTANCE was removed in WoW 12.0. Use the raw enum value (2) directly.
+-- IsInGroup(2) checks for instance/LFG groups. IsInGroup() alone checks normal groups.
+local INSTANCE_GROUP = 2
+
 local function InGroupContext()
-  if IsInRaid() or IsInGroup() then return true end
-  if LE_PARTY_CATEGORY_INSTANCE and IsInGroup(LE_PARTY_CATEGORY_INSTANCE) then return true end
+  if IsInRaid() or IsInGroup() or IsInGroup(INSTANCE_GROUP) then return true end
   return false
 end
 
 local function SendToChat(message)
   if IsInRaid() then
     SendChatMessage(message, "RAID")
-  elseif LE_PARTY_CATEGORY_INSTANCE and IsInGroup(LE_PARTY_CATEGORY_INSTANCE) then
+  elseif IsInGroup(INSTANCE_GROUP) then
     SendChatMessage(message, "INSTANCE_CHAT")
   elseif IsInGroup() then
     SendChatMessage(message, "PARTY")
@@ -155,6 +158,16 @@ function DrinkingModule.OnEvent(event, ...)
 
     local unit, updateInfo = ...
     if unit ~= "player" or not updateInfo then return end
+
+    -- isFullUpdate means neither addedAuras nor removedAuraInstanceIDs is provided.
+    -- Blizzard sends this when the aura state was bulk-reset (e.g. zone change).
+    -- Safest response: if we were tracking a drink, silently cancel it.
+    if updateInfo.isFullUpdate then
+      isDrinking = false
+      drinkStartTime = 0
+      drinkAuraInstanceID = nil
+      return
+    end
 
     -- Check adds for both drink start and well fed completion
     if updateInfo.addedAuras then

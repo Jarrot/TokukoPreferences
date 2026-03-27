@@ -18,17 +18,20 @@ TokukoPreferences/
 
 - **Drinking Announcements** — announces to group chat when you start/finish eating or drinking
 - **ElvUI Tooltip Anchor** — tooltip follows cursor out of combat, snaps to fixed ElvUI position in combat
+- **Damage Meter Embed** — embeds Details!, Skada, or Blizzard's native meter into ElvUI's right chat panel; supports dual-window (damage + healing split left/right), combat-only mode, and keybind toggle
 
 ## Commands
 
 - `/tp` — Open settings panel
 - `/tokukop` — Open settings panel (alias)
+- `/tpembed` — Toggle damage meter embed on/off
 
 ## SavedVariables
 
 Settings are stored in `TokukoPDB`, organized by module:
 - `TokukoPDB.Drinking` — Drinking module settings
 - `TokukoPDB.Tooltip` — Tooltip module settings
+- `TokukoPDB.Embed` — Embed module settings
 
 ---
 
@@ -158,11 +161,24 @@ that touches auras, unit data, or resources. These rules apply to every module:
 | `auraData.name` | ✅ May be secret | `pcall` around `:lower()` / `:find()` |
 | Other aura fields | ✅ May be secret | Check `C_Secrets` first, then `pcall` |
 
+### Removed in 12.0 — Do Not Use
+| Old API | Replacement |
+|---|---|
+| `LE_PARTY_CATEGORY_INSTANCE` global | Use raw value `2` — `IsInGroup(2)`, `IsInGroup(LE_PARTY_CATEGORY_INSTANCE)` crashes |
+| `COMBAT_LOG_EVENT_UNFILTERED` (for enemy data) | Gone. Use Blizzard's native boss timers |
+| `UnitAura()` by name | Use `C_UnitAuras.GetAuraDataByIndex()` |
+
 ### Aura Safety
 - **Never use `GetBuffDataByIndex`** — removed in 12.0, use `C_UnitAuras.GetAuraDataByIndex(unit, index, "HELPFUL")`
 - **Always check `InCombatLockdown()` first** — bail out early if you don't need to run in combat
 - **Always check `C_Secrets.ShouldUnitAuraInstanceBeSecret(unit, instanceID)`** before reading any aura field other than `auraInstanceID` and `spellId`
 - **Always `pcall` string methods** on aura name fields — secret strings crash on `:lower()`, `:find()` etc.
+- **Always handle `updateInfo.isFullUpdate`** in `UNIT_AURA` handlers — when true, `addedAuras` and `removedAuraInstanceIDs` are absent; reset tracked state safely
+
+### Frame / UI Safety
+- **Never call `SetParent`, `ClearAllPoints`, or `SetPoint` during `InCombatLockdown()`** — this causes taint on non-secure frames and can produce Lua errors mid-pull. Queue the operation and execute on `PLAYER_REGEN_ENABLED`
+- **`C_Timer.After` is safe** — unaffected by 12.0 restrictions
+- **`HookScript` is safe** — pure UI, not blocked
 
 ### Combat Safety
 - **Never automate combat actions** — blocked by Blizzard and ban-worthy

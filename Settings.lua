@@ -86,7 +86,7 @@ local settingsFrame = nil
 
 local function BuildSettingsWindow()
   local f = CreateFrame("Frame", "TokukoPSettingsFrame", UIParent, "BasicFrameTemplateWithInset")
-  f:SetSize(380, 460)
+  f:SetSize(420, 720)
   f:SetPoint("CENTER")
   f:SetMovable(true)
   f:EnableMouse(true)
@@ -138,6 +138,129 @@ local function BuildSettingsWindow()
     function(v) TokukoPDB.Drinking.completeMessage = v end,
     y)
   y = y - 44
+
+  -- ── Divider ─────────────────────────────────────────────
+  MakeDivider(f, y)
+  y = y - 14
+
+  -- ── Embed ────────────────────────────────────────────────
+  MakeSectionHeader(f, "Damage Meter Embed (requires ElvUI)", y)
+  y = y - 26
+
+  MakeCheckbox(f, "Enable Embed",
+    "Embed meter into ElvUI's right chat panel.\nUse /tpembed to toggle, or bind a key.",
+    function() return TokukoPDB.Embed and TokukoPDB.Embed.enabled end,
+    function(v)
+      TokukoPDB.Embed.enabled = v
+      if v and not TokukoP.modules.Embed.IsEmbedded() then
+        -- Enabling: trigger the embed immediately
+        TokukoP.modules.Embed.Toggle()
+      elseif not v and TokukoP.modules.Embed.IsEmbedded() then
+        -- Disabling: detach immediately
+        TokukoP.modules.Embed.Toggle()
+      end
+    end,
+    y)
+  y = y - 30
+
+  local addonLabel = f:CreateFontString(nil, "OVERLAY", "GameFontNormal")
+  addonLabel:SetPoint("TOPLEFT", 20, y)
+  addonLabel:SetText("Meter Addon:")
+
+  local addonBtn = CreateFrame("Button", nil, f, "UIPanelButtonTemplate")
+  addonBtn:SetSize(110, 22)
+  addonBtn:SetPoint("LEFT", addonLabel, "RIGHT", 8, 0)
+  addonBtn:SetText(TokukoPDB.Embed and TokukoPDB.Embed.meterAddon or "Details")
+  addonBtn:SetScript("OnClick", function(self)
+    local db = TokukoPDB.Embed
+    -- Only Details and Skada support full embed (resize + reparent)
+    -- Blizzard meter is Edit Mode controlled and cannot be reliably resized
+    db.meterAddon = db.meterAddon == "Details" and "Skada" or "Details"
+    self:SetText(db.meterAddon)
+  end)
+  y = y - 30
+
+  MakeCheckbox(f, "Dual Window Embed (left + right)",
+    "Embed two meter windows side by side in the panel.\nNot supported with the Blizzard meter (single window only).",
+    function() return TokukoPDB.Embed and TokukoPDB.Embed.dualEmbed end,
+    function(v) TokukoPDB.Embed.dualEmbed = v end,
+    y)
+  y = y - 30
+
+  MakeCheckbox(f, "Show Only In Combat",
+    "Meter embeds when you enter combat and detaches on leaving combat.",
+    function() return TokukoPDB.Embed and TokukoPDB.Embed.combatOnly end,
+    function(v) TokukoPDB.Embed.combatOnly = v end,
+    y)
+  y = y - 34
+
+  local splitLabel = f:CreateFontString(nil, "OVERLAY", "GameFontNormal")
+  splitLabel:SetPoint("TOPLEFT", 20, y)
+  splitLabel:SetText("Dual Split Ratio (left % width):")
+
+  local splitEB = CreateFrame("EditBox", nil, f, "InputBoxTemplate")
+  splitEB:SetSize(50, 22)
+  splitEB:SetPoint("LEFT", splitLabel, "RIGHT", 8, 0)
+  splitEB:SetAutoFocus(false)
+  splitEB:SetMaxLetters(4)
+  splitEB:SetText(tostring(math.floor((TokukoPDB.Embed and TokukoPDB.Embed.splitRatio or 0.5) * 100)))
+  local function SaveSplit(self)
+    local v = tonumber(self:GetText())
+    if v then
+      TokukoPDB.Embed.splitRatio = TokukoP.Clamp(v / 100, 0.2, 0.8)
+      self:SetText(tostring(math.floor(TokukoPDB.Embed.splitRatio * 100)))
+    end
+    self:ClearFocus()
+  end
+  splitEB:SetScript("OnEnterPressed", SaveSplit)
+  splitEB:SetScript("OnEditFocusLost", SaveSplit)
+  y = y - 30
+
+  local w1Label = f:CreateFontString(nil, "OVERLAY", "GameFontNormal")
+  w1Label:SetPoint("TOPLEFT", 20, y)
+  w1Label:SetText("Window 1 index:")
+  local w1EB = CreateFrame("EditBox", nil, f, "InputBoxTemplate")
+  w1EB:SetSize(40, 22)
+  w1EB:SetPoint("LEFT", w1Label, "RIGHT", 8, 0)
+  w1EB:SetAutoFocus(false)
+  w1EB:SetMaxLetters(2)
+  w1EB:SetText(tostring(TokukoPDB.Embed and TokukoPDB.Embed.window1 or 1))
+  local function SaveW1(self)
+    local v = tonumber(self:GetText())
+    if v then TokukoPDB.Embed.window1 = math.max(1, math.floor(v)) end
+    self:SetText(tostring(TokukoPDB.Embed.window1))
+    self:ClearFocus()
+  end
+  w1EB:SetScript("OnEnterPressed", SaveW1)
+  w1EB:SetScript("OnEditFocusLost", SaveW1)
+
+  local w2Label = f:CreateFontString(nil, "OVERLAY", "GameFontNormal")
+  w2Label:SetPoint("LEFT", w1EB, "RIGHT", 16, 0)
+  w2Label:SetText("Window 2 index:")
+  local w2EB = CreateFrame("EditBox", nil, f, "InputBoxTemplate")
+  w2EB:SetSize(40, 22)
+  w2EB:SetPoint("LEFT", w2Label, "RIGHT", 8, 0)
+  w2EB:SetAutoFocus(false)
+  w2EB:SetMaxLetters(2)
+  w2EB:SetText(tostring(TokukoPDB.Embed and TokukoPDB.Embed.window2 or 2))
+  local function SaveW2(self)
+    local v = tonumber(self:GetText())
+    if v then TokukoPDB.Embed.window2 = math.max(1, math.floor(v)) end
+    self:SetText(tostring(TokukoPDB.Embed.window2))
+    self:ClearFocus()
+  end
+  w2EB:SetScript("OnEnterPressed", SaveW2)
+  w2EB:SetScript("OnEditFocusLost", SaveW2)
+  y = y - 34
+
+  local embedToggleBtn = CreateFrame("Button", nil, f, "UIPanelButtonTemplate")
+  embedToggleBtn:SetSize(160, 24)
+  embedToggleBtn:SetPoint("TOPLEFT", 20, y)
+  embedToggleBtn:SetText("Toggle Embed Now")
+  embedToggleBtn:SetScript("OnClick", function()
+    TokukoP.modules.Embed.Toggle()
+  end)
+  y = y - 36
 
   -- ── Divider ─────────────────────────────────────────────
   MakeDivider(f, y)

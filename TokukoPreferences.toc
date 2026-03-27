@@ -11,6 +11,7 @@ Core.lua
 # Modules (can load in any order)
 DrinkingModule.lua
 TooltipModule.lua
+EmbedModule.lua
 
 # Settings (must load after modules)
 Settings.lua
