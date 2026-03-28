@@ -387,11 +387,17 @@ function EmbedModule.IsEmbedded() return embedded end
 local function HandleCombatState(inCombat)
   local db = TokukoPDB.Embed
   if not db or not db.enabled then return end
-  if not inCombat then
-    if embedPending then embedPending = false; DoEmbed(); return end
-    if db.combatOnly and embedded then DoUnembed() end
-  else
-    if db.combatOnly and not embedded then DoEmbed() end
+
+  -- embedPending: tried to embed during combat, retry now
+  if not inCombat and embedPending then
+    embedPending = false
+    DoEmbed()
+    return
+  end
+
+  -- combatOnly: hide/show the already-embedded meters, don't unembed
+  if db.combatOnly and embedded then
+    SetMetersVisible(inCombat)
   end
 end
 

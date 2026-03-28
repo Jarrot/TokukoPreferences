@@ -69,6 +69,6 @@ eventFrame:SetScript("OnEvent", function(self, event, ...)
       end
     end)
 
-    print("|cff00ff00TokukoPreferences|r loaded. Type |cffffffff/tp|r for settings.")
+    print("|cff00ff00TokukoPreferences|r loaded. |cffffffff/tp|r for settings.")
   end
 end)
