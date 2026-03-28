@@ -31,56 +31,32 @@ local function InsertElvUIOptions()
   local db = TokukoPDB
 
   E.Options.args.TokukoPreferences = {
-    order = 100,
-    type  = "group",
-    name  = "|cffffcc00Tokuko|rPreferences",
-    args  = {
-      -- ── Drinking ───────────────────────────────────────────
+    order  = 100,
+    type   = "group",
+    name   = "|cffffcc00Tokuko|rPreferences",
+    args   = {
+
+      -- ════════════════════════════════════════════════════
+      -- LEFT COLUMN — Drinking + Tooltip
+      -- ════════════════════════════════════════════════════
       drinkingHeader = {
         order = 1, type = "header", name = "Drinking Announcements",
+        width = "half",
       },
+      -- spacer to push embed header to right half
+      spacer1 = {
+        order = 2, type = "header", name = "Damage Meter Embed",
+        width = "half",
+      },
+
       drinkingEnabled = {
-        order = 2, type = "toggle", width = "full",
+        order = 10, type = "toggle", width = "half",
         name = "Enable Drinking Announcements",
-        desc = "Toggle drinking announcements on/off.",
         get  = function() return db.Drinking.enabled end,
         set  = function(_, v) db.Drinking.enabled = v end,
       },
-      drinkingOnlyGroup = {
-        order = 3, type = "toggle", width = "full",
-        name = "Only in Group / Instance",
-        desc = "Only announce when in a party, raid, or instance.",
-        get  = function() return db.Drinking.onlyInGroup end,
-        set  = function(_, v) db.Drinking.onlyInGroup = v end,
-      },
-      drinkingAnnounceComplete = {
-        order = 4, type = "toggle", width = "full",
-        name = "Announce When Done",
-        desc = "Announce when you finish eating/drinking.",
-        get  = function() return db.Drinking.announceComplete end,
-        set  = function(_, v) db.Drinking.announceComplete = v end,
-      },
-      drinkingMessage = {
-        order = 5, type = "input", width = "full",
-        name = "Start Message",
-        desc = "Sent to group chat when you start eating or drinking.",
-        get  = function() return db.Drinking.message end,
-        set  = function(_, v) db.Drinking.message = v end,
-      },
-      drinkingCompleteMessage = {
-        order = 6, type = "input", width = "full",
-        name = "Complete Message",
-        desc = "Sent to group chat when you finish eating or drinking.",
-        get  = function() return db.Drinking.completeMessage end,
-        set  = function(_, v) db.Drinking.completeMessage = v end,
-      },
-
-      -- ── Embed ──────────────────────────────────────────────
-      embedHeader = {
-        order = 10, type = "header", name = "Damage Meter Embed",
-      },
       embedEnabled = {
-        order = 11, type = "toggle", width = "full",
+        order = 11, type = "toggle", width = "half",
         name = "Enable Embed",
         desc = "Embed Details! into ElvUI's right chat panel.\n/tpembed to toggle, right-click > to hide/show.",
         get  = function() return db.Embed.enabled end,
@@ -93,54 +69,76 @@ local function InsertElvUIOptions()
           end
         end,
       },
+
+      drinkingOnlyGroup = {
+        order = 20, type = "toggle", width = "half",
+        name = "Only in Group / Instance",
+        get  = function() return db.Drinking.onlyInGroup end,
+        set  = function(_, v) db.Drinking.onlyInGroup = v end,
+      },
       embedDual = {
-        order = 12, type = "toggle", width = "full",
+        order = 21, type = "toggle", width = "half",
         name = "Dual Window Embed (left + right)",
-        desc = "Embed two Details! windows side by side.",
         get  = function() return db.Embed.dualEmbed end,
         set  = function(_, v) db.Embed.dualEmbed = v end,
       },
+
+      drinkingAnnounceComplete = {
+        order = 30, type = "toggle", width = "half",
+        name = "Announce When Done",
+        get  = function() return db.Drinking.announceComplete end,
+        set  = function(_, v) db.Drinking.announceComplete = v end,
+      },
       embedCombatOnly = {
-        order = 13, type = "toggle", width = "full",
+        order = 31, type = "toggle", width = "half",
         name = "Show Only In Combat",
-        desc = "Meter embeds on combat enter, detaches on exit.",
         get  = function() return db.Embed.combatOnly end,
         set  = function(_, v) db.Embed.combatOnly = v end,
       },
+
+      drinkingMessage = {
+        order = 40, type = "input", width = "half",
+        name = "Start Message",
+        get  = function() return db.Drinking.message end,
+        set  = function(_, v) db.Drinking.message = v end,
+      },
       embedSplitRatio = {
-        order = 14, type = "range",
-        name = "Dual Split Ratio (left % width)",
-        desc = "How much of the panel width the left window takes.",
+        order = 41, type = "range", width = "half",
+        name = "Dual Split Ratio (left %)",
         min = 20, max = 80, step = 1,
         get  = function() return math.floor((db.Embed.splitRatio or 0.5) * 100) end,
         set  = function(_, v) db.Embed.splitRatio = v / 100 end,
       },
+
+      drinkingCompleteMessage = {
+        order = 50, type = "input", width = "half",
+        name = "Complete Message",
+        get  = function() return db.Drinking.completeMessage end,
+        set  = function(_, v) db.Drinking.completeMessage = v end,
+      },
       embedWindow1 = {
-        order = 15, type = "range",
-        name = "Window 1 Index (left/single)",
+        order = 51, type = "range", width = "half",
+        name = "Window 1 (left/single)  |  Window 2 (right)",
+        desc = "Window 1 = left panel. Window 2 = right panel (dual mode).",
         min = 1, max = 5, step = 1,
         get  = function() return db.Embed.window1 or 1 end,
         set  = function(_, v) db.Embed.window1 = v end,
       },
+
+      tooltipHeader = {
+        order = 60, type = "header", name = "Tooltip",
+        width = "half",
+      },
       embedWindow2 = {
-        order = 16, type = "range",
-        name = "Window 2 Index (right)",
+        order = 61, type = "range", width = "half",
+        name = " ",  -- blank label so it aligns with window1
         min = 1, max = 5, step = 1,
         get  = function() return db.Embed.window2 or 2 end,
         set  = function(_, v) db.Embed.window2 = v end,
       },
-      embedToggle = {
-        order = 17, type = "execute",
-        name = "Toggle Embed Now",
-        func = function() TokukoP.modules.Embed.Toggle() end,
-      },
 
-      -- ── Tooltip ────────────────────────────────────────────
-      tooltipHeader = {
-        order = 20, type = "header", name = "Tooltip",
-      },
       tooltipEnabled = {
-        order = 21, type = "toggle", width = "full",
+        order = 70, type = "toggle", width = "half",
         name = "Cursor Anchor Out of Combat",
         desc = "Tooltip follows cursor when out of combat.\nSnaps to fixed ElvUI anchor in combat.",
         get  = function() return db.Tooltip and db.Tooltip.enabled end,
@@ -153,6 +151,11 @@ local function InsertElvUIOptions()
             end
           end
         end,
+      },
+      embedToggle = {
+        order = 71, type = "execute", width = "half",
+        name = "Toggle Embed Now",
+        func = function() TokukoP.modules.Embed.Toggle() end,
       },
     },
   }
