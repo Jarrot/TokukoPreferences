@@ -60,13 +60,13 @@ local function InsertElvUIOptions()
         set  = function(_, v) db.Drinking.announceComplete = v end,
       },
       drinkingMessage = {
-        order = 5, type = "input", width = "full",
+        order = 5, type = "input", width = "half",
         name = "Start Message",
         get  = function() return db.Drinking.message end,
         set  = function(_, v) db.Drinking.message = v end,
       },
       drinkingCompleteMessage = {
-        order = 6, type = "input", width = "full",
+        order = 6, type = "input", width = "half",
         name = "Complete Message",
         get  = function() return db.Drinking.completeMessage end,
         set  = function(_, v) db.Drinking.completeMessage = v end,
@@ -104,14 +104,9 @@ local function InsertElvUIOptions()
         get  = function() return db.Embed.combatOnly end,
         set  = function(_, v) db.Embed.combatOnly = v end,
       },
-      embedToggle = {
-        order = 14, type = "execute",
-        name = "Toggle Embed Now",
-        func = function() TokukoP.modules.Embed.Toggle() end,
-      },
       embedSplitRatio = {
-        order = 15, type = "range", width = "full",
-        name = "Dual Split Ratio (left % width)",
+        order = 15, type = "range",
+        name = "Split Ratio (left %)",
         min = 20, max = 80, step = 1,
         get  = function() return math.floor((db.Embed.splitRatio or 0.5) * 100) end,
         set  = function(_, v) db.Embed.splitRatio = v / 100 end,
@@ -287,17 +282,9 @@ local function BuildFallbackWindow()
   MakeCheckbox(f, "Dual Window Embed", nil,
     function() return TokukoPDB.Embed.dualEmbed end,
     function(v) TokukoPDB.Embed.dualEmbed = v end, y); y = y - 28
-  MakeCheckbox(f, "Show Only In Combat", nil,
+  MakeCheckbox(f, "Hide Out of Combat", nil,
     function() return TokukoPDB.Embed.combatOnly end,
     function(v) TokukoPDB.Embed.combatOnly = v end, y); y = y - 28
-
-  local toggleBtn = CreateFrame("Button", nil, f, "UIPanelButtonTemplate")
-  toggleBtn:SetSize(160, 24)
-  toggleBtn:SetPoint("TOPLEFT", 20, y)
-  toggleBtn:SetText("Toggle Embed Now")
-  toggleBtn:SetScript("OnClick", function() TokukoP.modules.Embed.Toggle() end)
-  SkinBtn(toggleBtn)
-  y = y - 34
 
   MakeDivider(f, y); y = y - 14
   MakeHeader(f, "Tooltip", y); y = y - 26
