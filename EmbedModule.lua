@@ -336,7 +336,6 @@ local function DoEmbed()
   metersVisible = true
   PositionFrames()
   StartRepositionTimer()
-  print("|cff00ff00TokukoP Embed:|r Meter embedded. Right-click \">\" to hide/show. /tpembed to detach.")
 end
 
 local function DoUnembed()
@@ -358,7 +357,6 @@ local function DoUnembed()
     meterFrame2 = nil
   end
   meterFrame1 = nil
-  print("|cff00ff00TokukoP Embed:|r Meter detached.")
 end
 
 -- ===============================
@@ -366,10 +364,7 @@ end
 -- ===============================
 
 function EmbedModule.Toggle()
-  if not TokukoPDB.Embed or not TokukoPDB.Embed.enabled then
-    print("|cffff6600TokukoP Embed:|r Embed is disabled. Enable it in /tp settings first.")
-    return
-  end
+  if not TokukoPDB.Embed or not TokukoPDB.Embed.enabled then return end
   if embedded then
     DoUnembed()
     embedPending = false

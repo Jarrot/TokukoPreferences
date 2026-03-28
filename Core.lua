@@ -69,6 +69,6 @@ eventFrame:SetScript("OnEvent", function(self, event, ...)
       end
     end)
 
-    print("|cff00ff00TokukoPreferences|r loaded. |cffffffff/tp|r for settings.")
+    print("|cff00b3ffTokukoPreferences|r: Settings via |cffffffff/ec|r -> Plugins -> TokukoPreferences")
   end
 end)

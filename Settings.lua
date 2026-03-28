@@ -59,14 +59,17 @@ local function InsertElvUIOptions()
         get  = function() return db.Drinking.announceComplete end,
         set  = function(_, v) db.Drinking.announceComplete = v end,
       },
+      drinkingMessageBreak = {
+        order = 5, type = "description", name = "", width = "full",
+      },
       drinkingMessage = {
-        order = 5, type = "input", width = "half",
+        order = 6, type = "input", width = "full",
         name = "Start Message",
         get  = function() return db.Drinking.message end,
         set  = function(_, v) db.Drinking.message = v end,
       },
       drinkingCompleteMessage = {
-        order = 6, type = "input", width = "half",
+        order = 7, type = "input", width = "full",
         name = "Complete Message",
         get  = function() return db.Drinking.completeMessage end,
         set  = function(_, v) db.Drinking.completeMessage = v end,
@@ -103,6 +106,9 @@ local function InsertElvUIOptions()
         desc = "Hides the meter windows when out of combat, shows them in combat. Meters stay embedded.",
         get  = function() return db.Embed.combatOnly end,
         set  = function(_, v) db.Embed.combatOnly = v end,
+      },
+      embedWindowBreak = {
+        order = 14, type = "description", name = "", width = "full",
       },
       embedSplitRatio = {
         order = 15, type = "range",
