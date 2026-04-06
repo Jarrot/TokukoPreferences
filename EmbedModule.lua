@@ -170,12 +170,9 @@ local function PositionFrames()
     local w1 = (db.dualEmbed and meterFrame2)
                and math.floor(pw * TokukoP.Clamp(db.splitRatio, 0.2, 0.8))
                or (pw - 1)
-    -- Shift frame UP by titleBar height so hidden title is above panel top
-    -- and bar content starts flush with the tab strip
-    local titleH1 = (meterFrame1.titleBar and meterFrame1.titleBar:GetHeight()) or 0
-    ForceDetailsSize(meterFrame1, w1, ph + titleH1)
+    ForceDetailsSize(meterFrame1, w1, ph)
     meterFrame1:ClearAllPoints()
-    meterFrame1:SetPoint("TOPLEFT",    panelFrame,     "TOPLEFT",        0, yOff + titleH1)
+    meterFrame1:SetPoint("TOPLEFT",    panelFrame,     "TOPLEFT",        0, yOff)
     meterFrame1:SetPoint("BOTTOMLEFT", botAnchorFrame, botAnchorPoint,   0, botOffset)
     meterFrame1:SetWidth(w1)
     if meterFrame1.floatingframe then meterFrame1.floatingframe:Hide() end
@@ -186,10 +183,9 @@ local function PositionFrames()
   if db.dualEmbed and meterFrame2 then
     local w1 = math.floor(pw * TokukoP.Clamp(db.splitRatio, 0.2, 0.8))
     local w2 = pw - w1 - 1
-    local titleH2 = (meterFrame2.titleBar and meterFrame2.titleBar:GetHeight()) or 0
-    ForceDetailsSize(meterFrame2, w2, ph + titleH2)
+    ForceDetailsSize(meterFrame2, w2, ph)
     meterFrame2:ClearAllPoints()
-    meterFrame2:SetPoint("TOPRIGHT",    panelFrame,     "TOPRIGHT",        -1, yOff + titleH2)
+    meterFrame2:SetPoint("TOPRIGHT",    panelFrame,     "TOPRIGHT",        -1, yOff)
     meterFrame2:SetPoint("BOTTOMRIGHT", botAnchorFrame, botAnchorPointR,   -1, botOffset)
     meterFrame2:SetWidth(w2)
     if meterFrame2.floatingframe then meterFrame2.floatingframe:Hide() end
@@ -221,30 +217,30 @@ local function StartRepositionTimer()
 end
 
 -- ===============================
--- Chrome (title bar) hiding
+-- Chrome hiding
 -- ===============================
 
 local function TryHideChrome(frame)
   if not frame then return end
-  -- Title bar
   if frame.titleBar and frame.titleBar.Hide then frame.titleBar:Hide() end
-  -- Border frame (creates rounded corners, extends outside frame bounds)
-  if frame.border and frame.border.Hide then frame.border:Hide() end
-  -- Skada / generic fallback
-  local name = frame:GetName()
-  local bar = frame.title or frame.TitleBar
-              or (name and _G[name .. "TitleBar"])
-  if bar and bar.Hide then bar:Hide() end
+  if frame.border  and frame.border.Hide  then frame.border:Hide()  end
+  -- Hide toolbar button containers that appear on mouseover (DetailsUpFrameInstance*, DetailsUpFrameLeftPart*)
+  local kids = {frame:GetChildren()}
+  for _, c in ipairs(kids) do
+    local n = c:GetName() or ""
+    if n:find("UpFrame") then c:Hide() end
+  end
 end
 
 local function TryShowChrome(frame)
   if not frame then return end
   if frame.titleBar and frame.titleBar.Show then frame.titleBar:Show() end
   if frame.border  and frame.border.Show  then frame.border:Show()  end
-  local name = frame:GetName()
-  local bar = frame.title or frame.TitleBar
-              or (name and _G[name .. "TitleBar"])
-  if bar and bar.Show then bar:Show() end
+  local kids = {frame:GetChildren()}
+  for _, c in ipairs(kids) do
+    local n = c:GetName() or ""
+    if n:find("UpFrame") then c:Show() end
+  end
 end
 
 -- ===============================
@@ -258,12 +254,34 @@ local metersVisible = true
 
 local function SetMetersVisible(show)
   metersVisible = show
-  if meterFrame1 then
-    if show then meterFrame1:Show() else meterFrame1:Hide() end
+  local alpha = show and 1 or 0
+  local function applyTo(frame)
+    if not frame then return end
+    frame:SetAlpha(alpha)
+    frame:EnableMouse(show)
+    local inst = frame._instance or frame.instance
+    if inst then
+      pcall(function()
+        if inst.rowframe then
+          if show then
+            inst.rowframe:SetAlpha(1)
+            inst.rowframe:Show()
+            -- Re-apply full clickthrough so chat remains clickable after un-hide
+            inst.clickthrough_window = true
+            inst.rowframe:EnableMouse(false)
+            local barKids = {inst.rowframe:GetChildren()}
+            for _, c in ipairs(barKids) do
+              if c and c.EnableMouse then c:EnableMouse(false) end
+            end
+          else
+            inst.rowframe:Hide()
+          end
+        end
+      end)
+    end
   end
-  if meterFrame2 then
-    if show then meterFrame2:Show() else meterFrame2:Hide() end
-  end
+  applyTo(meterFrame1)
+  applyTo(meterFrame2)
 end
 
 local function HookToggleButton()
@@ -309,9 +327,25 @@ local function DoEmbed()
   SaveOriginalPosition(meterFrame1, 1)
   meterFrame1:SetParent(panelFrame)
   meterFrame1:SetFrameStrata("LOW")
+  meterFrame1:SetAlpha(1)
   meterFrame1:SetClampedToScreen(false)
   TryHideChrome(meterFrame1)
   meterFrame1:Show()
+  pcall(function()
+    local inst1 = meterFrame1._instance or meterFrame1.instance
+    if inst1 and inst1.rowframe then
+      -- Raise above the chat frame (LOW) so bars are visible on load.
+      inst1.rowframe:SetFrameStrata("MEDIUM")
+      -- Full clickthrough: disable mouse on rowframe AND all child bar frames so
+      -- chat links remain clickable beneath the embedded meters.
+      inst1.clickthrough_window = true
+      inst1.rowframe:EnableMouse(false)
+      local barKids = {inst1.rowframe:GetChildren()}
+      for _, c in ipairs(barKids) do
+        if c and c.EnableMouse then c:EnableMouse(false) end
+      end
+    end
+  end)
 
   if db.dualEmbed then
     local frame2 = GetDetailsFrame(db.window2)
@@ -320,9 +354,22 @@ local function DoEmbed()
       SaveOriginalPosition(meterFrame2, 2)
       meterFrame2:SetParent(panelFrame)
       meterFrame2:SetFrameStrata("LOW")
+      meterFrame2:SetAlpha(1)
       meterFrame2:SetClampedToScreen(false)
       TryHideChrome(meterFrame2)
       meterFrame2:Show()
+      pcall(function()
+        local inst2 = meterFrame2._instance or meterFrame2.instance
+        if inst2 and inst2.rowframe then
+          inst2.rowframe:SetFrameStrata("MEDIUM")
+          inst2.clickthrough_window = true
+          inst2.rowframe:EnableMouse(false)
+          local barKids = {inst2.rowframe:GetChildren()}
+          for _, c in ipairs(barKids) do
+            if c and c.EnableMouse then c:EnableMouse(false) end
+          end
+        end
+      end)
     else
       meterFrame2 = nil
       print("|cffff6600TokukoP Embed:|r Could not find Details window "
@@ -343,13 +390,37 @@ local function DoUnembed()
   embedded = false
   if repositionTimer then repositionTimer:Cancel(); repositionTimer = nil end
 
+  local function unembedFrame(frame)
+    if not frame then return end
+    frame:SetAlpha(1)
+    frame:EnableMouse(true)
+    local inst = frame._instance or frame.instance
+    if inst then
+      pcall(function()
+        if inst.rowframe then
+          inst.rowframe:SetAlpha(1)
+          inst.rowframe:Show()
+          inst.clickthrough_window = false
+          inst.rowframe:EnableMouse(true)
+          local barKids = {inst.rowframe:GetChildren()}
+          for _, c in ipairs(barKids) do
+            if c and c.EnableMouse then c:EnableMouse(true) end
+          end
+          inst.rowframe:SetFrameStrata("LOW")
+        end
+      end)
+    end
+  end
+
   if meterFrame1 then
+    unembedFrame(meterFrame1)
     TryShowChrome(meterFrame1)
     if meterFrame1.floatingframe then meterFrame1.floatingframe:Show() end
     if meterFrame1.isLocked ~= nil then meterFrame1.isLocked = false end
     RestoreOriginalPosition(meterFrame1, 1)
   end
   if meterFrame2 then
+    unembedFrame(meterFrame2)
     TryShowChrome(meterFrame2)
     if meterFrame2.floatingframe then meterFrame2.floatingframe:Show() end
     if meterFrame2.isLocked ~= nil then meterFrame2.isLocked = false end

@@ -17,4 +17,4 @@ EmbedModule.lua
 Settings.lua
 
 # Debug (optional - comment out to disable debug commands)
-# DebugModule.lua
+DebugModule.lua

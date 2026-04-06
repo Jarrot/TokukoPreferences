@@ -41,12 +41,21 @@ Embeds Details! windows into `RightChatPanel`. Key geometry:
 - `StartRepositionTimer()` — ticks every 0.25s for 8s after embed to win against Details' own position restoration
 
 ### Details! internals patched on embed
-- `frame.titleBar:Hide()` — hides title bar
+- `frame.titleBar:Hide()` — hides title bar chrome
 - `frame.border:Hide()` — hides rounded corner border (extends outside frame bounds)
-- `frame.floatingframe:Hide()` — hides extra chrome
+- `frame.floatingframe:Hide()` — hides extra chrome (also a separate bar-display sibling frame)
 - `frame.isLocked = true` — locks window
 - `frame.BoxBarrasAltura` — internal bar container height
 - `frame._instance.db.width/height` — saved dimensions
+
+### Details! frame architecture (confirmed via /tpscan)
+`DetailsBaseFrame1` is the chrome container (32 direct children, all LOW strata). The actual visible content is in **separate sibling frames** that Details! positions independently:
+- `inst.rowframe` = `DetailsRowFrame1` — the bar rows (bars)
+- `inst.windowBackgroundDisplay` = `Details_GumpFrame1` — window background
+- `inst.bgframe` = `Details_WindowFrame1` — IS a child of DetailsBaseFrame1
+- `frame.floatingframe` = nil on the frame; `inst.floatingframe` = `DetailsInstance1BorderHolder` (0x0, just an anchor)
+
+`frame:Hide()` is counteracted by Details!' own scripts. `SetAlpha` is used instead — sticks because `Show()` does not reset alpha. Must apply to base frame AND `inst.rowframe` + `inst.windowBackgroundDisplay`.
 
 ### Combat handling
 - `embedPending` — if embed attempted in combat, retries on `PLAYER_REGEN_ENABLED`

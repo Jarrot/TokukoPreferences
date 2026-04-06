@@ -17,31 +17,102 @@ SlashCmdList["TPDEBUG"] = function()
 end
 
 -- ===============================
--- /tpscan — find Details frame globals
+-- /tpscan — inspect Details frame structure
 -- ===============================
 SLASH_TPSCAN1 = "/tpscan"
 SlashCmdList["TPSCAN"] = function()
-  print("|cff00ccffTokukoP Scan:|r Looking for Details frames...")
-  for i = 1, 5 do
-    local f = _G["DetailsBaseFrame" .. i]
-    if f and f.IsObjectType and f:IsObjectType("Frame") then
-      print("  FOUND: DetailsBaseFrame" .. i
-            .. " size=" .. string.format("%.1f", f:GetWidth())
-            .. "x" .. string.format("%.1f", f:GetHeight()))
+  print("|cff00ccffTokukoP Scan:|r Inspecting Details frame structure...")
+
+  local function frameInfo(f, label)
+    if not f or not f.IsObjectType or not f:IsObjectType("Frame") then
+      print("  " .. label .. " = nil/invalid")
+      return
     end
+    local name   = f:GetName() or "(unnamed)"
+    local shown  = f:IsShown() and "shown" or "hidden"
+    local vis    = f:IsVisible() and "visible" or "invisible"
+    local strata = f:GetFrameStrata()
+    local level  = f:GetFrameLevel()
+    local alpha  = string.format("%.2f", f:GetEffectiveAlpha())
+    local w      = string.format("%.1f", f:GetWidth())
+    local h      = string.format("%.1f", f:GetHeight())
+    local par    = f:GetParent()
+    local parName = par and (par:GetName() or "(unnamed parent)") or "nil"
+    print(string.format("  %s [%s] %sx%s strata=%s lvl=%d alpha=%s %s/%s parent=%s",
+          label, name, w, h, strata, level, alpha, shown, vis, parName))
   end
-  if Details then
-    for i = 1, 5 do
-      local ok, inst = pcall(function() return Details:GetInstance(i) end)
-      if ok and inst then
-        local bf = inst.baseframe
-        print("  GetInstance(" .. i .. ").baseframe = "
-              .. (bf and (bf:GetName() or "found (unnamed)") or "nil"))
+
+  for i = 1, 2 do
+    local f = _G["DetailsBaseFrame" .. i]
+    if f then
+      frameInfo(f, "DetailsBaseFrame" .. i)
+      -- Known chrome children
+      frameInfo(f.titleBar,      "  .titleBar")
+      frameInfo(f.border,        "  .border")
+      frameInfo(f.floatingframe, "  .floatingframe")
+      -- All named children
+      local kids = { f:GetChildren() }
+      if #kids > 0 then
+        print("  Children (" .. #kids .. "):")
+        for _, c in ipairs(kids) do
+          if c and c.IsObjectType and c:IsObjectType("Frame") then
+            local cn     = c:GetName() or "(unnamed)"
+            local cs     = c:GetFrameStrata()
+            local cl     = c:GetFrameLevel()
+            local ca     = string.format("%.2f", c:GetEffectiveAlpha())
+            local cvis   = c:IsVisible() and "vis" or "hid"
+            local cw     = string.format("%.0f", c:GetWidth())
+            local ch     = string.format("%.0f", c:GetHeight())
+            print(string.format("    [%s] strata=%s lvl=%d alpha=%s %s %sx%s",
+                  cn, cs, cl, ca, cvis, cw, ch))
+          end
+        end
+      end
+      -- Separate sibling frames and key instance state
+      if Details then
+        local ok, inst = pcall(function() return Details:GetInstance(i) end)
+        if ok and inst then
+          print("  Separate sibling frames:")
+          frameInfo(inst.rowframe,               "  inst.rowframe")
+          frameInfo(inst.windowBackgroundDisplay, "  inst.windowBackgroundDisplay")
+          frameInfo(inst.bgframe,                "  inst.bgframe")
+          print(string.format("  Key flags: clickthrough_window=%s  titlebar_shown=%s",
+                tostring(inst.clickthrough_window), tostring(inst.titlebar_shown)))
+          -- All instance methods (sorted, batched to fit chat lines)
+          local funcs = {}
+          for k, v in pairs(inst) do
+            if type(v) == "function" then funcs[#funcs + 1] = tostring(k) end
+          end
+          table.sort(funcs)
+          print("  Methods (" .. #funcs .. "):")
+          local line = "   "
+          for _, f in ipairs(funcs) do
+            local entry = " " .. f
+            if #line + #entry > 240 then
+              print(line)
+              line = "   "
+            end
+            line = line .. entry
+          end
+          if #line > 3 then print(line) end
+        end
       end
     end
-  else
-    print("  Details not loaded.")
   end
+
+  -- Right panel chat frames (to diagnose strata of covering frames)
+  local rcp = _G["RightChatPanel"]
+  if rcp then
+    print("Right panel (RightChatPanel) chat frame children:")
+    for i = 1, 10 do
+      local cf = _G["ChatFrame" .. i]
+      if cf and cf:GetParent() == rcp then
+        frameInfo(cf, "ChatFrame" .. i)
+      end
+    end
+  end
+
+  if not Details then print("  Details not loaded.") end
   print("|cff00ccffTokukoP Scan:|r Done.")
 end
 
