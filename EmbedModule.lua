@@ -176,8 +176,6 @@ local function PositionFrames()
     meterFrame1:SetPoint("BOTTOMLEFT", botAnchorFrame, botAnchorPoint,   0, botOffset)
     meterFrame1:SetWidth(w1)
     if meterFrame1.floatingframe then meterFrame1.floatingframe:Hide() end
-    -- Lock the window so users can't accidentally drag it out
-    if meterFrame1.isLocked ~= nil then meterFrame1.isLocked = true end
   end
 
   if db.dualEmbed and meterFrame2 then
@@ -189,7 +187,6 @@ local function PositionFrames()
     meterFrame2:SetPoint("BOTTOMRIGHT", botAnchorFrame, botAnchorPointR,   -1, botOffset)
     meterFrame2:SetWidth(w2)
     if meterFrame2.floatingframe then meterFrame2.floatingframe:Hide() end
-    if meterFrame2.isLocked ~= nil then meterFrame2.isLocked = true end
   end
 end
 
@@ -214,6 +211,19 @@ local function StartRepositionTimer()
       repositionTimer = nil
     end
   end)
+end
+
+-- Recursively enable/disable mouse on a frame and all its descendants.
+-- GetChildren() is only one level deep; Details_GumpFrame1 (windowBackgroundDisplay)
+-- is a grandchild of DetailsBaseFrame and has OnEnter/OnLeave scripts that intercept
+-- clicks even when invisible.
+local function SetMouseRecursive(frame, enabled)
+  if not frame then return end
+  if frame.EnableMouse then frame:EnableMouse(enabled) end
+  local kids = {frame:GetChildren()}
+  for _, c in ipairs(kids) do
+    SetMouseRecursive(c, enabled)
+  end
 end
 
 -- ===============================
@@ -254,34 +264,27 @@ local metersVisible = true
 
 local function SetMetersVisible(show)
   metersVisible = show
-  local alpha = show and 1 or 0
   local function applyTo(frame)
     if not frame then return end
-    frame:SetAlpha(alpha)
-    frame:EnableMouse(show)
     local inst = frame._instance or frame.instance
     if inst then
       pcall(function()
-        if inst.rowframe then
-          if show then
-            inst.rowframe:SetAlpha(1)
-            inst.rowframe:Show()
-            -- Re-apply full clickthrough so chat remains clickable after un-hide
-            inst.clickthrough_window = true
-            inst.rowframe:EnableMouse(false)
-            local barKids = {inst.rowframe:GetChildren()}
-            for _, c in ipairs(barKids) do
-              if c and c.EnableMouse then c:EnableMouse(false) end
-            end
-          else
-            inst.rowframe:Hide()
-          end
+        if show then
+          inst:ShowWindow()
+          TryHideChrome(frame)  -- ShowWindow restores chrome; hide it again
+        else
+          inst:HideWindow()     -- properly sets ativa=false; Details won't re-show on combat
         end
       end)
     end
   end
   applyTo(meterFrame1)
   applyTo(meterFrame2)
+  if show then
+    -- Re-embed after ShowWindow resets geometry
+    PositionFrames()
+    StartRepositionTimer()
+  end
 end
 
 local function HookToggleButton()
@@ -333,17 +336,9 @@ local function DoEmbed()
   meterFrame1:Show()
   pcall(function()
     local inst1 = meterFrame1._instance or meterFrame1.instance
-    if inst1 and inst1.rowframe then
-      -- Raise above the chat frame (LOW) so bars are visible on load.
-      inst1.rowframe:SetFrameStrata("MEDIUM")
-      -- Full clickthrough: disable mouse on rowframe AND all child bar frames so
-      -- chat links remain clickable beneath the embedded meters.
-      inst1.clickthrough_window = true
-      inst1.rowframe:EnableMouse(false)
-      local barKids = {inst1.rowframe:GetChildren()}
-      for _, c in ipairs(barKids) do
-        if c and c.EnableMouse then c:EnableMouse(false) end
-      end
+    if inst1 then
+      if inst1.rowframe then inst1.rowframe:SetFrameStrata("MEDIUM") end
+      inst1:LockInstance(true)  -- uses Details' own lock; properly updates button/resizers
     end
   end)
 
@@ -360,14 +355,9 @@ local function DoEmbed()
       meterFrame2:Show()
       pcall(function()
         local inst2 = meterFrame2._instance or meterFrame2.instance
-        if inst2 and inst2.rowframe then
-          inst2.rowframe:SetFrameStrata("MEDIUM")
-          inst2.clickthrough_window = true
-          inst2.rowframe:EnableMouse(false)
-          local barKids = {inst2.rowframe:GetChildren()}
-          for _, c in ipairs(barKids) do
-            if c and c.EnableMouse then c:EnableMouse(false) end
-          end
+        if inst2 then
+          if inst2.rowframe then inst2.rowframe:SetFrameStrata("MEDIUM") end
+          inst2:LockInstance(true)
         end
       end)
     else
@@ -392,23 +382,27 @@ local function DoUnembed()
 
   local function unembedFrame(frame)
     if not frame then return end
-    frame:SetAlpha(1)
-    frame:EnableMouse(true)
     local inst = frame._instance or frame.instance
     if inst then
       pcall(function()
+        inst:LockInstance(false)  -- properly restores lock button and resize handles
+        -- If HideWindow was called (meters were hidden), restore active state without
+        -- calling ShowWindow (which would reposition before RestoreOriginalPosition runs)
+        if inst.ativa == false then
+          inst.ativa = true
+          frame:Show()
+          frame:SetAlpha(1)
+          SetMouseRecursive(frame, true)
+        end
         if inst.rowframe then
           inst.rowframe:SetAlpha(1)
           inst.rowframe:Show()
-          inst.clickthrough_window = false
-          inst.rowframe:EnableMouse(true)
-          local barKids = {inst.rowframe:GetChildren()}
-          for _, c in ipairs(barKids) do
-            if c and c.EnableMouse then c:EnableMouse(true) end
-          end
           inst.rowframe:SetFrameStrata("LOW")
         end
       end)
+    else
+      frame:SetAlpha(1)
+      SetMouseRecursive(frame, true)
     end
   end
 
@@ -416,14 +410,12 @@ local function DoUnembed()
     unembedFrame(meterFrame1)
     TryShowChrome(meterFrame1)
     if meterFrame1.floatingframe then meterFrame1.floatingframe:Show() end
-    if meterFrame1.isLocked ~= nil then meterFrame1.isLocked = false end
     RestoreOriginalPosition(meterFrame1, 1)
   end
   if meterFrame2 then
     unembedFrame(meterFrame2)
     TryShowChrome(meterFrame2)
     if meterFrame2.floatingframe then meterFrame2.floatingframe:Show() end
-    if meterFrame2.isLocked ~= nil then meterFrame2.isLocked = false end
     RestoreOriginalPosition(meterFrame2, 2)
     meterFrame2 = nil
   end

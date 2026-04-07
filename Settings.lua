@@ -119,14 +119,14 @@ local function InsertElvUIOptions()
       },
       embedWindow1 = {
         order = 16, type = "range",
-        name = "Window 1  (left / single)",
+        name = "Window #1  (left / single)",
         min = 1, max = 5, step = 1,
         get  = function() return db.Embed.window1 or 1 end,
         set  = function(_, v) db.Embed.window1 = v end,
       },
       embedWindow2 = {
         order = 17, type = "range",
-        name = "Window 2  (right)",
+        name = "Window #2  (right)",
         min = 1, max = 5, step = 1,
         get  = function() return db.Embed.window2 or 2 end,
         set  = function(_, v) db.Embed.window2 = v end,
