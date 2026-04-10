@@ -237,6 +237,12 @@ local function InsertElvUIOptions()
           TokukoP.modules.HealerMana.RefreshGrowDirection()
         end,
       },
+      healerManaResetPos = {
+        order = 41, type = "execute",
+        name = "Reset Position",
+        desc = "Move the frame back to the default position near the top center of the screen.",
+        func = function() TokukoP.modules.HealerMana.ResetPosition() end,
+      },
 
       -- ── Tooltip ───────────────────────────────────────────
       tooltipHeader = {
