@@ -120,6 +120,7 @@ local function BuildContainer()
   local elvuiSkinOk = false
   if ElvUI then
     elvuiSkinOk = pcall(function() f:SetTemplate("Default") end)
+    print("|cff00ccffHealerMana:|r SetTemplate ok=" .. tostring(elvuiSkinOk))
   end
 
   if elvuiSkinOk then
@@ -127,6 +128,7 @@ local function BuildContainer()
     borderR, borderG, borderB = f:GetBackdropBorderColor()
     bgR, bgG, bgB             = bgR or 0.06, bgG or 0.06, bgB or 0.06
     borderR, borderG, borderB = borderR or 0.25, borderG or 0.25, borderB or 0.25
+    print("|cff00ccffHealerMana:|r bg=(" .. string.format("%.2f,%.2f,%.2f", bgR, bgG, bgB) .. ")")
   else
     bgR, bgG, bgB           = 0, 0, 0
     borderR, borderG, borderB = 0.35, 0.35, 0.35
@@ -313,11 +315,14 @@ end
 -- ===============================
 
 function HealerManaModule.Initialize()
+  print("|cff00ccffHealerMana:|r Initialize start")
   TokukoPDB.HealerMana = TokukoPDB.HealerMana or {}
   TokukoP.MergeDefaults(TokukoPDB.HealerMana, HealerManaModule.DEFAULTS)
+  print("|cff00ccffHealerMana:|r DB ok, enabled=" .. tostring(TokukoPDB.HealerMana.enabled))
 
   -- Rebuild font list from LibSharedMedia if available (same source as ElvUI dropdowns).
   local lsm = LibStub and LibStub("LibSharedMedia-3.0", true)
+  print("|cff00ccffHealerMana:|r LSM=" .. (lsm and "found" or "nil"))
   if lsm then
     local fonts = lsm:HashTable("font")
     local names = {}
@@ -330,17 +335,23 @@ function HealerManaModule.Initialize()
       HealerManaModule.FONT_VALUES[path]  = name
       table.insert(HealerManaModule.FONT_SORTING, path)
     end
+    print("|cff00ccffHealerMana:|r fonts loaded=" .. #HealerManaModule.FONT_SORTING)
   end
 
+  print("|cff00ccffHealerMana:|r building container, ElvUI=" .. (ElvUI and "yes" or "no"))
   container = BuildContainer()
+  print("|cff00ccffHealerMana:|r container built ok")
 
   local db = TokukoPDB.HealerMana
   local anchor = db.growUp and "BOTTOMLEFT" or "TOPLEFT"
+  print("|cff00ccffHealerMana:|r anchor=" .. anchor .. " posX=" .. tostring(db.posX) .. " posY=" .. tostring(db.posY))
   container:SetPoint(anchor, UIParent, "CENTER", db.posX, db.posY)
 
+  print("|cff00ccffHealerMana:|r starting ticker, rate=" .. TICK_RATE)
   C_Timer.NewTicker(TICK_RATE, UpdateDisplay)
 
   UpdateDisplay()
+  print("|cff00ccffHealerMana:|r Initialize complete")
 end
 
 function HealerManaModule.RegisterEvents(frame)
