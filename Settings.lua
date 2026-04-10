@@ -240,7 +240,7 @@ local function InsertElvUIOptions()
 
       -- ── Tooltip ───────────────────────────────────────────
       tooltipHeader = {
-        order = 40, type = "header", name = "Tooltip",
+        order = 50, type = "header", name = "Tooltip",
       },
       tooltipEnabled = {
         order = 21, type = "toggle",
