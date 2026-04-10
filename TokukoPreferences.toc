@@ -12,6 +12,7 @@ Core.lua
 DrinkingModule.lua
 TooltipModule.lua
 EmbedModule.lua
+HealerManaModule.lua
 
 # Settings (must load after modules)
 Settings.lua

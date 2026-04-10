@@ -253,6 +253,16 @@ local function TryShowChrome(frame)
   end
 end
 
+-- Hook the Details base frame's OnEnter so that whenever Details re-shows its
+-- toolbar on mouseover, we immediately hide it again.  HookScript appends after
+-- the original script, so Details' own OnEnter fires first (shows UpFrame), then
+-- ours fires and hides it.  The flag prevents double-hooking across re-embeds.
+local function HookChromeHide(frame)
+  if not frame or frame.__tpChromeHooked then return end
+  frame.__tpChromeHooked = true
+  frame:HookScript("OnEnter", function(self) TryHideChrome(self) end)
+end
+
 -- ===============================
 -- Toggle Button Hook
 -- ===============================
@@ -271,7 +281,8 @@ local function SetMetersVisible(show)
       pcall(function()
         if show then
           inst:ShowWindow()
-          TryHideChrome(frame)  -- ShowWindow restores chrome; hide it again
+          TryHideChrome(frame)   -- ShowWindow restores chrome; hide it again
+          HookChromeHide(frame)  -- ensure hover suppression is wired (idempotent)
         else
           inst:HideWindow()     -- properly sets ativa=false; Details won't re-show on combat
         end
@@ -333,6 +344,7 @@ local function DoEmbed()
   meterFrame1:SetAlpha(1)
   meterFrame1:SetClampedToScreen(false)
   TryHideChrome(meterFrame1)
+  HookChromeHide(meterFrame1)
   meterFrame1:Show()
   pcall(function()
     local inst1 = meterFrame1._instance or meterFrame1.instance
@@ -352,6 +364,7 @@ local function DoEmbed()
       meterFrame2:SetAlpha(1)
       meterFrame2:SetClampedToScreen(false)
       TryHideChrome(meterFrame2)
+      HookChromeHide(meterFrame2)
       meterFrame2:Show()
       pcall(function()
         local inst2 = meterFrame2._instance or meterFrame2.instance
