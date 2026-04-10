@@ -24,6 +24,7 @@ HealerManaModule.DEFAULTS = {
   textAlpha     = 1.0,
   posX          = 0,
   posY          = 200,
+  width         = 200,
 }
 
 -- ===============================
@@ -57,11 +58,10 @@ end
 -- State
 -- ===============================
 
-local NAME_MAX    = 15   -- max chars before truncation
-
 local container   = nil
 local nameLines   = {}   -- left-aligned name FontString pool
 local pctLines    = {}   -- right-aligned percentage FontString pool
+local lastCount   = 0    -- most recent healer count; used by OnSizeChanged
 local previewMode = false
 local bgR, bgG, bgB         = 0, 0, 0      -- set in BuildContainer; used by RefreshBgAlpha
 local borderR, borderG, borderB = 0.35, 0.35, 0.35
@@ -111,8 +111,10 @@ local function BuildContainer()
   local db = TokukoPDB.HealerMana
   local f  = CreateFrame("Frame", "TokukoPHealerManaFrame", UIParent, "BackdropTemplate")
   f:SetFrameStrata("MEDIUM")
-  f:SetSize(180, 20)
+  f:SetSize(db.width, 20)
   f:SetMovable(true)
+  f:SetResizable(true)
+  f:SetResizeBounds(100, 20)
   f:EnableMouse(true)
   f:RegisterForDrag("LeftButton")
   f:SetClampedToScreen(true)
@@ -155,18 +157,40 @@ local function BuildContainer()
     db.posX = self:GetLeft() - ux
     db.posY = db.growUp and (self:GetBottom() - uy) or (self:GetTop() - uy)
   end)
+  f:HookScript("OnSizeChanged", function(self)
+    TokukoPDB.HealerMana.width = self:GetWidth()
+    if lastCount > 0 then LayoutLines(lastCount) end
+  end)
+
+  -- Resize handle — right edge drag, hidden when locked
+  local handle = CreateFrame("Frame", nil, f)
+  handle:SetSize(12, 30)
+  handle:SetPoint("RIGHT", f, "RIGHT", 0, 0)
+  handle:EnableMouse(true)
+  handle:SetScript("OnMouseDown", function()
+    if not TokukoPDB.HealerMana.locked then f:StartSizing("RIGHT") end
+  end)
+  handle:SetScript("OnMouseUp", function()
+    f:StopMovingOrSizing()
+  end)
+  local htex = handle:CreateTexture(nil, "OVERLAY")
+  htex:SetTexture("Interface\\ChatFrame\\UI-ChatIM-SizeGrabber-Up")
+  htex:SetSize(12, 12)
+  htex:SetPoint("CENTER")
 
   -- Pre-allocate FontString pairs (name left, percentage right)
   for i = 1, MAX_HEALERS do
     local ns = f:CreateFontString(nil, "OVERLAY")
     ns:SetFont(db.font, db.fontSize, "OUTLINE")
     ns:SetJustifyH("LEFT")
+    ns:SetWordWrap(false)  -- clip at pixel boundary rather than wrapping
     ns:Hide()
     nameLines[i] = ns
 
     local ps = f:CreateFontString(nil, "OVERLAY")
     ps:SetFont(db.font, db.fontSize, "OUTLINE")
     ps:SetJustifyH("RIGHT")
+    ps:SetWordWrap(false)
     ps:Hide()
     pctLines[i] = ps
   end
@@ -190,16 +214,10 @@ local function ApplyFont()
   end
 end
 
-local function TruncateName(name)
-  if #name > NAME_MAX then
-    return string.sub(name, 1, NAME_MAX - 2) .. ".."
-  end
-  return name
-end
-
 local PCT_WIDTH = 38  -- px reserved on the right for "100%" at default font size
 
 local function LayoutLines(count)
+  lastCount = count
   local db     = TokukoPDB.HealerMana
   local lineH  = db.fontSize + LINE_PAD
   local totalH = FRAME_PAD * 2 + count * lineH - LINE_PAD
@@ -246,7 +264,7 @@ local function UpdateDisplay()
         r, g, b = db.color.r, db.color.g, db.color.b
       end
       nameLines[i]:SetTextColor(r, g, b, db.textAlpha)
-      nameLines[i]:SetText(TruncateName(h.name))
+      nameLines[i]:SetText(h.name)
       pctLines[i]:SetTextColor(r, g, b, db.textAlpha)
       pctLines[i]:SetText(h.mana .. "%")
     end
@@ -298,7 +316,7 @@ local function UpdateDisplay()
       r, g, b = db.color.r, db.color.g, db.color.b
     end
     nameLines[i]:SetTextColor(r, g, b, db.textAlpha)
-    nameLines[i]:SetText(TruncateName(h.name))
+    nameLines[i]:SetText(h.name)
     pctLines[i]:SetTextColor(r, g, b, db.textAlpha)
     pctLines[i]:SetText(math.floor(h.mana) .. "%")
   end
