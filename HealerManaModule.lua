@@ -62,6 +62,7 @@ local container   = nil
 local nameLines   = {}   -- left-aligned name FontString pool
 local pctLines    = {}   -- right-aligned percentage FontString pool
 local lastCount   = 0    -- most recent healer count; used by OnSizeChanged
+local LayoutLines        -- forward declaration (defined after BuildContainer)
 local previewMode = false
 local bgR, bgG, bgB         = 0, 0, 0      -- set in BuildContainer; used by RefreshBgAlpha
 local borderR, borderG, borderB = 0.35, 0.35, 0.35
@@ -216,7 +217,7 @@ end
 
 local PCT_WIDTH = 38  -- px reserved on the right for "100%" at default font size
 
-local function LayoutLines(count)
+LayoutLines = function(count)
   lastCount = count
   local db     = TokukoPDB.HealerMana
   local lineH  = db.fontSize + LINE_PAD
