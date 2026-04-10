@@ -101,7 +101,7 @@ local function GetManaPct(unit)
     end
     return 0
   end
-  return UnitPowerPercent(unit, 0) or 0  -- 0 = Mana
+  return (UnitPowerPercent(unit, 0) or 0) * 100  -- returns 0-1 in 12.x, convert to 0-100
 end
 
 -- ===============================
