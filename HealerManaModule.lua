@@ -416,6 +416,22 @@ function HealerManaModule.Initialize()
   UpdateDisplay()
 end
 
+-- /tphmtest — verify real mana API on the player unit, no group/role required
+SLASH_TPHMTEST1 = "/tphmtest"
+SlashCmdList["TPHMTEST"] = function()
+  print("|cff00ccffHealerMana Test:|r")
+  print("  UnitExists(player)=" .. tostring(UnitExists("player")))
+  print("  UnitPowerPercent=" .. tostring(UnitPowerPercent))
+  if UnitPowerPercent then
+    local pct = UnitPowerPercent("player", 0)
+    print("  player mana pct=" .. tostring(pct))
+  end
+  local name = UnitName("player")
+  local _, class = UnitClass("player")
+  local role = UnitGroupRolesAssigned("player")
+  print("  name=" .. tostring(name) .. "  class=" .. tostring(class) .. "  role=" .. tostring(role))
+end
+
 function HealerManaModule.RegisterEvents(frame)
   frame:RegisterEvent("GROUP_ROSTER_UPDATE")
   frame:RegisterEvent("PLAYER_ENTERING_WORLD")
