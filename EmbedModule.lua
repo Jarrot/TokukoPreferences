@@ -339,6 +339,12 @@ local function DoEmbed()
 
   meterFrame1 = frame1
   SaveOriginalPosition(meterFrame1, 1)
+  pcall(function()
+    local inst1 = meterFrame1._instance or meterFrame1.instance
+    -- If Details was hidden via /details hide, ativa=false. ShowWindow resets
+    -- internal state so the window is in a clean visible state before we embed.
+    if inst1 and inst1.ativa == false then inst1:ShowWindow() end
+  end)
   meterFrame1:SetParent(panelFrame)
   meterFrame1:SetFrameStrata("LOW")
   meterFrame1:SetAlpha(1)
@@ -359,6 +365,10 @@ local function DoEmbed()
     if frame2 and frame2 ~= meterFrame1 then
       meterFrame2 = frame2
       SaveOriginalPosition(meterFrame2, 2)
+      pcall(function()
+        local inst2 = meterFrame2._instance or meterFrame2.instance
+        if inst2 and inst2.ativa == false then inst2:ShowWindow() end
+      end)
       meterFrame2:SetParent(panelFrame)
       meterFrame2:SetFrameStrata("LOW")
       meterFrame2:SetAlpha(1)
