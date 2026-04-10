@@ -57,8 +57,11 @@ end
 -- State
 -- ===============================
 
+local NAME_MAX    = 15   -- max chars before truncation
+
 local container   = nil
-local lines       = {}   -- FontString pool
+local nameLines   = {}   -- left-aligned name FontString pool
+local pctLines    = {}   -- right-aligned percentage FontString pool
 local previewMode = false
 local bgR, bgG, bgB         = 0, 0, 0      -- set in BuildContainer; used by RefreshBgAlpha
 local borderR, borderG, borderB = 0.35, 0.35, 0.35
@@ -153,13 +156,19 @@ local function BuildContainer()
     db.posY = db.growUp and (self:GetBottom() - uy) or (self:GetTop() - uy)
   end)
 
-  -- Pre-allocate FontStrings
+  -- Pre-allocate FontString pairs (name left, percentage right)
   for i = 1, MAX_HEALERS do
-    local fs = f:CreateFontString(nil, "OVERLAY")
-    fs:SetFont(db.font, db.fontSize, "OUTLINE")
-    fs:SetJustifyH("LEFT")
-    fs:Hide()
-    lines[i] = fs
+    local ns = f:CreateFontString(nil, "OVERLAY")
+    ns:SetFont(db.font, db.fontSize, "OUTLINE")
+    ns:SetJustifyH("LEFT")
+    ns:Hide()
+    nameLines[i] = ns
+
+    local ps = f:CreateFontString(nil, "OVERLAY")
+    ps:SetFont(db.font, db.fontSize, "OUTLINE")
+    ps:SetJustifyH("RIGHT")
+    ps:Hide()
+    pctLines[i] = ps
   end
 
   f:Hide()
@@ -175,10 +184,20 @@ end
 
 local function ApplyFont()
   local db = TokukoPDB.HealerMana
-  for _, fs in ipairs(lines) do
-    fs:SetFont(db.font, db.fontSize, "OUTLINE")
+  for i = 1, MAX_HEALERS do
+    nameLines[i]:SetFont(db.font, db.fontSize, "OUTLINE")
+    pctLines[i]:SetFont(db.font, db.fontSize, "OUTLINE")
   end
 end
+
+local function TruncateName(name)
+  if #name > NAME_MAX then
+    return string.sub(name, 1, NAME_MAX - 2) .. ".."
+  end
+  return name
+end
+
+local PCT_WIDTH = 38  -- px reserved on the right for "100%" at default font size
 
 local function LayoutLines(count)
   local db     = TokukoPDB.HealerMana
@@ -186,14 +205,21 @@ local function LayoutLines(count)
   local totalH = FRAME_PAD * 2 + count * lineH - LINE_PAD
   container:SetHeight(math.max(totalH, 20))
 
-  for i, fs in ipairs(lines) do
-    fs:ClearAllPoints()
+  local nameW = container:GetWidth() - FRAME_PAD * 2 - PCT_WIDTH
+  for i = 1, MAX_HEALERS do
+    nameLines[i]:ClearAllPoints()
+    pctLines[i]:ClearAllPoints()
     if i <= count then
-      fs:SetPoint("TOPLEFT", FRAME_PAD, -(FRAME_PAD + (i - 1) * lineH))
-      fs:SetWidth(container:GetWidth() - FRAME_PAD * 2)
-      fs:Show()
+      local yOff = -(FRAME_PAD + (i - 1) * lineH)
+      nameLines[i]:SetPoint("TOPLEFT", container, "TOPLEFT", FRAME_PAD, yOff)
+      nameLines[i]:SetWidth(nameW)
+      nameLines[i]:Show()
+      pctLines[i]:SetPoint("TOPRIGHT", container, "TOPRIGHT", -FRAME_PAD, yOff)
+      pctLines[i]:SetWidth(PCT_WIDTH)
+      pctLines[i]:Show()
     else
-      fs:Hide()
+      nameLines[i]:Hide()
+      pctLines[i]:Hide()
     end
   end
 end
@@ -219,8 +245,10 @@ local function UpdateDisplay()
       else
         r, g, b = db.color.r, db.color.g, db.color.b
       end
-      lines[i]:SetTextColor(r, g, b, db.textAlpha)
-      lines[i]:SetText(string.format("%s: %d%%", h.name, h.mana))
+      nameLines[i]:SetTextColor(r, g, b, db.textAlpha)
+      nameLines[i]:SetText(TruncateName(h.name))
+      pctLines[i]:SetTextColor(r, g, b, db.textAlpha)
+      pctLines[i]:SetText(h.mana .. "%")
     end
     container:Show()
     return
@@ -269,8 +297,10 @@ local function UpdateDisplay()
     else
       r, g, b = db.color.r, db.color.g, db.color.b
     end
-    lines[i]:SetTextColor(r, g, b, db.textAlpha)
-    lines[i]:SetText(string.format("%s: %d%%", h.name, math.floor(h.mana)))
+    nameLines[i]:SetTextColor(r, g, b, db.textAlpha)
+    nameLines[i]:SetText(TruncateName(h.name))
+    pctLines[i]:SetTextColor(r, g, b, db.textAlpha)
+    pctLines[i]:SetText(math.floor(h.mana) .. "%")
   end
 
   container:Show()
