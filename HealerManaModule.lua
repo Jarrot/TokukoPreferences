@@ -14,10 +14,14 @@ TokukoP.modules.HealerMana = HealerManaModule
 
 HealerManaModule.DEFAULTS = {
   enabled       = false,
+  locked        = false,
+  growUp        = false,
   font          = "Fonts\\ARIALN.TTF",
   fontSize      = 13,
   useClassColor = true,
   color         = { r = 1, g = 1, b = 1 },
+  bgAlpha       = 0.8,
+  textAlpha     = 1.0,
   posX          = 0,
   posY          = 200,
 }
@@ -29,20 +33,22 @@ HealerManaModule.DEFAULTS = {
 local LINE_PAD    = 2    -- px between lines
 local FRAME_PAD   = 6    -- px of padding inside frame border
 local MAX_HEALERS = 16   -- pre-allocated FontString pool
-local TICK_RATE   = 0.5  -- seconds between updates
+local TICK_RATE   = 1.0  -- seconds between updates
 
--- Font list — key is the actual font path, label is what shows in the dropdown
-local FONT_DEFS = {
+-- Fallback fonts used when LibSharedMedia is not available.
+local FONT_DEFS_FALLBACK = {
   { key = "Fonts\\ARIALN.TTF",   label = "Arial Narrow" },
   { key = "Fonts\\FRIZQT__.TTF", label = "Default"      },
   { key = "Fonts\\MORPHEUS.TTF", label = "Morpheus"     },
   { key = "Fonts\\SKURRI.TTF",   label = "Skurri"       },
 }
 
--- Built once; referenced by Settings.lua via TokukoP.modules.HealerMana
+-- Populated in Initialize() from LibSharedMedia (same source as ElvUI font dropdowns).
+-- Falls back to FONT_DEFS_FALLBACK if LSM is not available.
+-- key = font path, value = display name (AceConfig select format).
 HealerManaModule.FONT_VALUES  = {}
 HealerManaModule.FONT_SORTING = {}
-for _, fd in ipairs(FONT_DEFS) do
+for _, fd in ipairs(FONT_DEFS_FALLBACK) do
   HealerManaModule.FONT_VALUES[fd.key] = fd.label
   table.insert(HealerManaModule.FONT_SORTING, fd.key)
 end
@@ -54,6 +60,8 @@ end
 local container   = nil
 local lines       = {}   -- FontString pool
 local previewMode = false
+local bgR, bgG, bgB         = 0, 0, 0      -- set in BuildContainer; used by RefreshBgAlpha
+local borderR, borderG, borderB = 0.35, 0.35, 0.35
 
 local FAKE_HEALERS = {
   { name = "Tokukheal",  mana = 12, class = "PRIEST"  },
@@ -106,22 +114,41 @@ local function BuildContainer()
   f:RegisterForDrag("LeftButton")
   f:SetClampedToScreen(true)
 
-  f:SetBackdrop({
-    bgFile   = "Interface\\Tooltips\\UI-Tooltip-Background",
-    edgeFile = "Interface\\Tooltips\\UI-Tooltip-Border",
-    tile = true, tileSize = 8, edgeSize = 8,
-    insets = { left = 2, right = 2, top = 2, bottom = 2 },
-  })
-  f:SetBackdropColor(0, 0, 0, 0.55)
-  f:SetBackdropBorderColor(0.35, 0.35, 0.35, 0.9)
+  -- Use ElvUI's own skin if available — SetTemplate("Default") is added to the Frame
+  -- metatable by ElvUI and picks up whatever backdrop/border the user has configured.
+  -- We read back the RGB it applied, then reapply with our own bgAlpha.
+  local elvuiSkinOk = false
+  if ElvUI then
+    elvuiSkinOk = pcall(function() f:SetTemplate("Default") end)
+  end
 
-  f:SetScript("OnDragStart", f.StartMoving)
+  if elvuiSkinOk then
+    bgR, bgG, bgB             = f:GetBackdropColor()
+    borderR, borderG, borderB = f:GetBackdropBorderColor()
+    bgR, bgG, bgB             = bgR or 0.06, bgG or 0.06, bgB or 0.06
+    borderR, borderG, borderB = borderR or 0.25, borderG or 0.25, borderB or 0.25
+  else
+    bgR, bgG, bgB           = 0, 0, 0
+    borderR, borderG, borderB = 0.35, 0.35, 0.35
+    f:SetBackdrop({
+      bgFile   = "Interface\\Tooltips\\UI-Tooltip-Background",
+      edgeFile = "Interface\\Tooltips\\UI-Tooltip-Border",
+      tile = true, tileSize = 8, edgeSize = 8,
+      insets = { left = 2, right = 2, top = 2, bottom = 2 },
+    })
+  end
+  f:SetBackdropColor(bgR, bgG, bgB, db.bgAlpha)
+  f:SetBackdropBorderColor(borderR, borderG, borderB, db.bgAlpha)
+
+  f:SetScript("OnDragStart", function(self)
+    if not TokukoPDB.HealerMana.locked then self:StartMoving() end
+  end)
   f:SetScript("OnDragStop", function(self)
     self:StopMovingOrSizing()
-    local x, y   = self:GetCenter()
+    local db     = TokukoPDB.HealerMana
     local ux, uy = UIParent:GetCenter()
-    TokukoPDB.HealerMana.posX = x - ux
-    TokukoPDB.HealerMana.posY = y - uy
+    db.posX = self:GetLeft() - ux
+    db.posY = db.growUp and (self:GetBottom() - uy) or (self:GetTop() - uy)
   end)
 
   -- Pre-allocate FontStrings
@@ -135,6 +162,13 @@ local function BuildContainer()
 
   f:Hide()
   return f
+end
+
+local function ApplyBgAlpha()
+  if not container then return end
+  local a = TokukoPDB.HealerMana.bgAlpha
+  container:SetBackdropColor(bgR, bgG, bgB, a)
+  container:SetBackdropBorderColor(borderR, borderG, borderB, a)
 end
 
 local function ApplyFont()
@@ -183,7 +217,7 @@ local function UpdateDisplay()
       else
         r, g, b = db.color.r, db.color.g, db.color.b
       end
-      lines[i]:SetTextColor(r, g, b)
+      lines[i]:SetTextColor(r, g, b, db.textAlpha)
       lines[i]:SetText(string.format("%s: %d%%", h.name, h.mana))
     end
     container:Show()
@@ -233,7 +267,7 @@ local function UpdateDisplay()
     else
       r, g, b = db.color.r, db.color.g, db.color.b
     end
-    lines[i]:SetTextColor(r, g, b)
+    lines[i]:SetTextColor(r, g, b, db.textAlpha)
     lines[i]:SetText(string.format("%s: %d%%", h.name, math.floor(h.mana)))
   end
 
@@ -262,6 +296,18 @@ function HealerManaModule.TogglePreview()
   UpdateDisplay()
 end
 
+function HealerManaModule.RefreshBgAlpha()
+  ApplyBgAlpha()
+end
+
+function HealerManaModule.RefreshGrowDirection()
+  if not container then return end
+  local db     = TokukoPDB.HealerMana
+  local anchor = db.growUp and "BOTTOMLEFT" or "TOPLEFT"
+  container:ClearAllPoints()
+  container:SetPoint(anchor, UIParent, "CENTER", db.posX, db.posY)
+end
+
 -- ===============================
 -- Module Interface
 -- ===============================
@@ -270,10 +316,27 @@ function HealerManaModule.Initialize()
   TokukoPDB.HealerMana = TokukoPDB.HealerMana or {}
   TokukoP.MergeDefaults(TokukoPDB.HealerMana, HealerManaModule.DEFAULTS)
 
+  -- Rebuild font list from LibSharedMedia if available (same source as ElvUI dropdowns).
+  local lsm = LibStub and LibStub("LibSharedMedia-3.0", true)
+  if lsm then
+    local fonts = lsm:HashTable("font")
+    local names = {}
+    for name in pairs(fonts) do table.insert(names, name) end
+    table.sort(names)
+    HealerManaModule.FONT_VALUES  = {}
+    HealerManaModule.FONT_SORTING = {}
+    for _, name in ipairs(names) do
+      local path = fonts[name]
+      HealerManaModule.FONT_VALUES[path]  = name
+      table.insert(HealerManaModule.FONT_SORTING, path)
+    end
+  end
+
   container = BuildContainer()
 
   local db = TokukoPDB.HealerMana
-  container:SetPoint("CENTER", UIParent, "CENTER", db.posX, db.posY)
+  local anchor = db.growUp and "BOTTOMLEFT" or "TOPLEFT"
+  container:SetPoint(anchor, UIParent, "CENTER", db.posX, db.posY)
 
   C_Timer.NewTicker(TICK_RATE, UpdateDisplay)
 

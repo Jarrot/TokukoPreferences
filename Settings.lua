@@ -200,6 +200,43 @@ local function InsertElvUIOptions()
           TokukoP.modules.HealerMana.RefreshDisplay()
         end,
       },
+      healerManaTextAlpha = {
+        order = 37, type = "range",
+        name  = "Text Opacity",
+        min = 0, max = 1, step = 0.05, isPercent = true,
+        get  = function() return db.HealerMana.textAlpha end,
+        set  = function(_, v)
+          db.HealerMana.textAlpha = v
+          TokukoP.modules.HealerMana.RefreshDisplay()
+        end,
+      },
+      healerManaBgAlpha = {
+        order = 38, type = "range",
+        name  = "Background Opacity",
+        min = 0, max = 1, step = 0.05, isPercent = true,
+        get  = function() return db.HealerMana.bgAlpha end,
+        set  = function(_, v)
+          db.HealerMana.bgAlpha = v
+          TokukoP.modules.HealerMana.RefreshBgAlpha()
+        end,
+      },
+      healerManaLocked = {
+        order = 39, type = "toggle",
+        name = "Lock Position",
+        desc = "Prevent the frame from being dragged.",
+        get  = function() return db.HealerMana.locked end,
+        set  = function(_, v) db.HealerMana.locked = v end,
+      },
+      healerManaGrowUp = {
+        order = 40, type = "toggle",
+        name = "Grow Upward",
+        desc = "Frame expands upward as healers are added. The bottom edge stays fixed.\nDisabled: expands downward, top edge stays fixed.",
+        get  = function() return db.HealerMana.growUp end,
+        set  = function(_, v)
+          db.HealerMana.growUp = v
+          TokukoP.modules.HealerMana.RefreshGrowDirection()
+        end,
+      },
 
       -- ── Tooltip ───────────────────────────────────────────
       tooltipHeader = {
