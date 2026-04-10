@@ -223,9 +223,9 @@ local function InsertElvUIOptions()
       healerManaLocked = {
         order = 39, type = "toggle",
         name = "Lock Position",
-        desc = "Prevent the frame from being dragged.",
+        desc = "Prevent the frame from being dragged or resized.\nUnlocking will reset the position if the frame is off-screen.",
         get  = function() return db.HealerMana.locked end,
-        set  = function(_, v) db.HealerMana.locked = v end,
+        set  = function(_, v) TokukoP.modules.HealerMana.SetLocked(v) end,
       },
       healerManaGrowUp = {
         order = 40, type = "toggle",
@@ -236,12 +236,6 @@ local function InsertElvUIOptions()
           db.HealerMana.growUp = v
           TokukoP.modules.HealerMana.RefreshGrowDirection()
         end,
-      },
-      healerManaResetPos = {
-        order = 41, type = "execute",
-        name = "Reset Position",
-        desc = "Move the frame back to the default position near the top center of the screen.",
-        func = function() TokukoP.modules.HealerMana.ResetPosition() end,
       },
 
       -- ── Tooltip ───────────────────────────────────────────

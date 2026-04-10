@@ -349,6 +349,14 @@ function HealerManaModule.RefreshBgAlpha()
   ApplyBgAlpha()
 end
 
+local function IsOffScreen()
+  if not container then return false end
+  local left, right = container:GetLeft(), container:GetRight()
+  local top, bottom = container:GetTop(), container:GetBottom()
+  local sw, sh = UIParent:GetRight(), UIParent:GetTop()
+  return right < 0 or left > sw or top < 0 or bottom > sh
+end
+
 function HealerManaModule.ResetPosition()
   if not container then return end
   local db = TokukoPDB.HealerMana
@@ -356,6 +364,13 @@ function HealerManaModule.ResetPosition()
   local anchor = db.growUp and "BOTTOMLEFT" or "TOPLEFT"
   container:ClearAllPoints()
   container:SetPoint(anchor, UIParent, "CENTER", db.posX, db.posY)
+end
+
+function HealerManaModule.SetLocked(v)
+  TokukoPDB.HealerMana.locked = v
+  if not v and IsOffScreen() then
+    HealerManaModule.ResetPosition()
+  end
 end
 
 function HealerManaModule.RefreshGrowDirection()
