@@ -94,6 +94,7 @@ Frame backdrop: `frame:SetTemplate("Default")`
 - combatOnly = hide/show meters only, never embed/unembed
 - Right-click > = hide/show meters, not detach
 - `LE_PARTY_CATEGORY_INSTANCE` removed in 12.0 — use raw `2`
+- `UnitPowerPercent` returns **0–1** in 12.x (not 0–100) — multiply by 100 before displaying
 
 ## Git Branches
 
