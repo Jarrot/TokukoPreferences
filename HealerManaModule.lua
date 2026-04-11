@@ -96,6 +96,23 @@ end
 -- Technique confirmed from oUF/ElvUI tags.lua.
 local ScaleTo100 = CurveConstants and CurveConstants.ScaleTo100
 
+-- Blizzard's AbbreviateNumbers(value, configData) is a C-level function that
+-- handles secret values — same technique ElvUI uses (Math.lua).
+-- configData matches ElvUI's short table: { config = CreateAbbreviateConfig(...) }
+-- Breakpoints: METRIC style, 1 decimal place.
+--   significandDivisors: {1e11,1e8,1e5,1e2}  fractionDivisor: 10
+local manaAbbrevConfig
+if CreateAbbreviateConfig then
+  manaAbbrevConfig = {
+    config = CreateAbbreviateConfig({
+      { breakpoint=1e12, abbreviation="T", significandDivisor=1e11, fractionDivisor=10, abbreviationIsGlobal=false },
+      { breakpoint=1e9,  abbreviation="B", significandDivisor=1e8,  fractionDivisor=10, abbreviationIsGlobal=false },
+      { breakpoint=1e6,  abbreviation="M", significandDivisor=1e5,  fractionDivisor=10, abbreviationIsGlobal=false },
+      { breakpoint=1e3,  abbreviation="k", significandDivisor=1e2,  fractionDivisor=10, abbreviationIsGlobal=false },
+    })
+  }
+end
+
 local warnedMissingAPI = false
 
 -- Returns pixel width for the right (mana) column based on display mode and font size.
@@ -181,19 +198,27 @@ local function AbbrevSecret(s)
 end
 
 -- Returns the mana value as a display string (e.g. "45.2k") or nil if unavailable.
--- UnitPower for non-player units is secret in 12.x — arithmetic blocked.
--- We format to a digit string then abbreviate via pure string operations.
+-- Three paths in priority order:
+--  1. Direct arithmetic (player / non-restricted) → FormatManaValue
+--  2. Blizzard's C-level AbbreviateNumbers with our config (handles secrets)
+--  3. Pure string-op abbreviation (AbbrevSecret) on the "%d" digit string
 local function GetManaAbsoluteStr(unit)
   local rawCur = UnitPower(unit, 0)
   if rawCur == nil then return nil end
-  -- Direct arithmetic works for player / non-restricted contexts.
+  -- Path 1: direct arithmetic (works for player or out-of-instance).
   local ok, v = pcall(function() return rawCur + 0 end)
-  if ok then return FormatManaValue(v) end  -- "45.2k" via normal math
-  -- Secret path: format to digit string, abbreviate without arithmetic.
+  if ok then return FormatManaValue(v) end
+  -- Path 2: AbbreviateNumbers is a C-level Blizzard function that accepts
+  -- secret values — same technique used by ElvUI (Math.lua).
+  if manaAbbrevConfig then
+    local abbOk, abbStr = pcall(AbbreviateNumbers, rawCur, manaAbbrevConfig)
+    if abbOk and abbStr then return abbStr end
+  end
+  -- Path 3: pure string-op fallback on the formatted digit string.
   local s = nil
   pcall(function() s = string.format("%d", rawCur) end)
   if not s then return nil end
-  return AbbrevSecret(s) or s  -- "45.2k" if possible, raw "45230" as last resort
+  return AbbrevSecret(s) or s
 end
 
 -- Returns sortVal, displayStr formatted according to db.displayMode.
