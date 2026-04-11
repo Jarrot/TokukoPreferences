@@ -152,19 +152,48 @@ local function GetManaPct(unit)
   return pct, display
 end
 
+-- Abbreviate a tainted digit string using only string ops (no arithmetic).
+-- #s gives the digit count; string.sub extracts chars; ".." concatenates.
+-- "991600" (len 6) → "991.6k",  "45230" (len 5) → "45.2k",  "750" → "750"
+local function AbbrevSecret(s)
+  local result
+  pcall(function()
+    local len = #s
+    if     len >= 7 then result = string.sub(s,1,1).."."..string.sub(s,2,2).."M"
+    elseif len >= 6 then result = string.sub(s,1,3).."."..string.sub(s,4,4).."k"
+    elseif len >= 5 then result = string.sub(s,1,2).."."..string.sub(s,3,3).."k"
+    elseif len >= 4 then result = string.sub(s,1,1).."."..string.sub(s,2,2).."k"
+    else                 result = s
+    end
+  end)
+  -- Fallback: byte-existence checks avoid the len >= N comparison entirely.
+  if not result then
+    pcall(function()
+      if     string.byte(s,7) then result = string.sub(s,1,1).."."..string.sub(s,2,2).."M"
+      elseif string.byte(s,6) then result = string.sub(s,1,3).."."..string.sub(s,4,4).."k"
+      elseif string.byte(s,5) then result = string.sub(s,1,2).."."..string.sub(s,3,3).."k"
+      elseif string.byte(s,4) then result = string.sub(s,1,1).."."..string.sub(s,2,2).."k"
+      else                         result = s
+      end
+    end)
+  end
+  return result  -- nil if both strategies failed; caller shows raw string
+end
+
 -- Returns the mana value as a display string (e.g. "45.2k") or nil if unavailable.
--- UnitPower for non-player units is secret in 12.x — arithmetic is blocked, but
--- format("%d") produces a tainted displayable integer string (no abbreviation).
+-- UnitPower for non-player units is secret in 12.x — arithmetic blocked.
+-- We format to a digit string then abbreviate via pure string operations.
 local function GetManaAbsoluteStr(unit)
   local rawCur = UnitPower(unit, 0)
   if rawCur == nil then return nil end
   -- Direct arithmetic works for player / non-restricted contexts.
   local ok, v = pcall(function() return rawCur + 0 end)
-  if ok then return FormatManaValue(v) end  -- "45.2k"
-  -- Secret: show raw integer (can't divide for abbreviation).
+  if ok then return FormatManaValue(v) end  -- "45.2k" via normal math
+  -- Secret path: format to digit string, abbreviate without arithmetic.
   local s = nil
   pcall(function() s = string.format("%d", rawCur) end)
-  return s  -- "45230" tainted-but-displayable, or nil on failure
+  if not s then return nil end
+  return AbbrevSecret(s) or s  -- "45.2k" if possible, raw "45230" as last resort
 end
 
 -- Returns sortVal, displayStr formatted according to db.displayMode.
