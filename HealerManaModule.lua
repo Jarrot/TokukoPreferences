@@ -90,9 +90,12 @@ local function GetClassColor(classFilename)
   return 1, 1, 1
 end
 
--- UnitPowerPercent is the safe percentage API in Midnight (Secret Values system).
--- Arithmetic on UnitPower/UnitPowerMax is NOT a safe fallback — those values may
--- be secret, and doing math on secrets produces errors or garbage.
+-- CurveConstants.ScaleTo100: pass as last arg to UnitPowerPercent/UnitHealthPercent
+-- so the API scales the result to 0-100 inside Blizzard's secure C code.
+-- We never need to multiply by 100 ourselves — avoids all arithmetic on secrets.
+-- Technique confirmed from oUF/ElvUI tags.lua.
+local ScaleTo100 = CurveConstants and CurveConstants.ScaleTo100
+
 local warnedMissingAPI = false
 
 -- Percentage column widths per display mode (px).
@@ -107,9 +110,10 @@ local function FormatManaValue(n)
   return tostring(n)
 end
 
--- Returns sortVal (0-100 float), pctDisplay ("93%").
--- "player" unit: UnitPowerPercent returns a real 0-1 float → scale directly.
--- raid/party units: returns a secret in 12.x → use string.format workaround.
+-- Returns sortVal (0-100), pctDisplay ("93%").
+-- Uses CurveConstants.ScaleTo100 so UnitPowerPercent returns 0-100 inside
+-- Blizzard's secure C code — no addon-side multiplication needed.
+-- Technique taken from oUF/ElvUI tags.lua (pcall + format('%d')).
 local function GetManaPct(unit)
   if not UnitPowerPercent then
     if not warnedMissingAPI then
@@ -119,44 +123,21 @@ local function GetManaPct(unit)
     return 0, "?%"
   end
 
-  local raw = UnitPowerPercent(unit, 0)
-  if raw == nil then return 0, "?%" end
+  local ok, pct = pcall(UnitPowerPercent, unit, 0, true, ScaleTo100)
+  if not ok or pct == nil then return 0, "?%" end
 
-  -- Direct arithmetic works for "player" (real 0-1 float).
-  local ok, scaled = pcall(function() return raw * 100 end)
-  if ok then
-    local pct = math.floor(scaled)
-    return scaled, pct .. "%"
+  -- For "player" the result is a real float (e.g. 93.0) — arithmetic is safe.
+  local arithOk, n = pcall(math.floor, pct)
+  if arithOk then
+    return n, n .. "%"
   end
 
-  -- Secret value path (12.x): string.format accepts secrets but produces a TAINTED
-  -- string — tonumber on tainted strings is also blocked.
-  -- Strategy: use string.sub to pull digit chars from "0.XXYY", then string.byte
-  -- to convert chars to integers (byte values may be untainted).
-  -- "0.5700" → sub(3,4) = "57" → display "57%"
-  -- "1.0000" → first char "1" → 100%
-  local display = "?%"
-  local sortVal = 0
-  pcall(function()
-    local s = string.format("%.4f", raw)  -- "0.5700" or "1.0000" (tainted)
-    if string.sub(s, 1, 1) == "1" then
-      display = "100%"
-      sortVal = 100
-    else
-      local digits = string.sub(s, 3, 4)  -- "57" from "0.5700"
-      display = digits .. "%"
-      -- string.byte may return untainted integers (ASCII codes minus 48 = digit value)
-      pcall(function()
-        local b1, b2 = string.byte(digits, 1, 2)
-        sortVal = (b1 - 48) * 10 + (b2 - 48)
-      end)
-    end
-  end)
-  -- Last resort: show raw decimal with "?" so it's clear it's unscaled
-  if display == "?%" then
-    pcall(function() display = string.format("%.2f", raw) .. "?" end)
-  end
-  return sortVal, display
+  -- Secret value (raid/party in 12.x): format('%d', secret) produces a
+  -- tainted but displayable integer string without any addon arithmetic.
+  local display = string.format("%d%%", pct)
+  -- Pass pct as sortVal too; table.sort comparison is already pcall'd so if
+  -- secret comparison is blocked the sort simply won't run.
+  return pct, display
 end
 
 -- Returns the current mana as an absolute number, handling secret values.
