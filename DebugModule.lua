@@ -1,7 +1,7 @@
 -- DebugModule.lua
 -- Optional debug commands for TokukoPreferences.
 -- Only loaded if listed in the TOC. Remove from TOC to disable.
--- Commands: /tpdebug, /tpscan, /tpgap, /tphmtest
+-- Commands: /tpdebug, /tpscan, /tpgap, /tphmtest, /tpcrstats
 
 local ADDON_NAME = ...
 local TokukoP = TokukoP
@@ -158,6 +158,44 @@ SlashCmdList["TPHMTEST"] = function()
     end
   else
     print("  (not in group)")
+  end
+end
+
+-- ===============================
+-- /tpcrstats — CombatRes event fire rate
+-- Usage:
+--   /tpcrstats         print totals since login
+--   /tpcrstats reset   start a timed window; run again to see rate over that period
+-- ===============================
+local crStatsWindowStart = nil
+
+SLASH_TPCRSTATS1 = "/tpcrstats"
+SlashCmdList["TPCRSTATS"] = function(arg)
+  local cr = TokukoP.modules.CombatRes
+  if not cr or not cr._eventStats then
+    print("|cff00ccffTokukoP CombatRes:|r module not loaded.")
+    return
+  end
+  local s = cr._eventStats
+
+  if arg and arg:match("reset") then
+    crStatsWindowStart    = GetTime()
+    s.windowCharges       = 0
+    print("|cff00ccffTokukoP CombatRes:|r Window reset. Run /tpcrstats again to see rate.")
+    return
+  end
+
+  print("|cff00ccffTokukoP CombatRes Event Stats:|r")
+  print(string.format("  SPELL_UPDATE_CHARGES  total: %d", s.totalCharges))
+  print(string.format("  SPELL_UPDATE_COOLDOWN total: %d", s.totalCooldown))
+
+  if crStatsWindowStart then
+    local elapsed = GetTime() - crStatsWindowStart
+    local rate = elapsed > 0 and (s.windowCharges / elapsed) or 0
+    print(string.format("  Window: %.1fs  CHARGES fires: %d  (%.2f/sec)",
+          elapsed, s.windowCharges, rate))
+  else
+    print("  Tip: /tpcrstats reset  to start a timed window")
   end
 end
 

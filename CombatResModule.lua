@@ -54,6 +54,15 @@ local reincarIcon  = nil
 local db           = nil
 local tickerHandle = nil
 
+-- Debug counters (read by DebugModule via CombatResModule.GetEventStats)
+local eventStats = {
+  totalCharges  = 0,   -- SPELL_UPDATE_CHARGES fires since Initialize
+  totalCooldown = 0,   -- SPELL_UPDATE_COOLDOWN fires since Initialize
+  windowCharges = 0,   -- SPELL_UPDATE_CHARGES fires in current window
+  windowStart   = 0,   -- GetTime() when window opened via StartEventWindow()
+}
+CombatResModule._eventStats = eventStats
+
 -- ===============================
 -- Helpers
 -- ===============================
@@ -339,7 +348,14 @@ function CombatResModule.OnEvent(event, ...)
     CombatResModule.RefreshDisplay()
 
   elseif db.enabled then
-    if event == "SPELL_UPDATE_CHARGES" or event == "SPELL_UPDATE_COOLDOWN" then
+    if event == "SPELL_UPDATE_CHARGES" then
+      eventStats.totalCharges  = eventStats.totalCharges + 1
+      eventStats.windowCharges = eventStats.windowCharges + 1
+      SyncSweeps()
+      UpdateDisplay()
+      StartTicker()
+    elseif event == "SPELL_UPDATE_COOLDOWN" then
+      eventStats.totalCooldown = eventStats.totalCooldown + 1
       SyncSweeps()
       UpdateDisplay()
       StartTicker()
