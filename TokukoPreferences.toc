@@ -13,6 +13,7 @@ DrinkingModule.lua
 TooltipModule.lua
 EmbedModule.lua
 HealerManaModule.lua
+CombatResModule.lua
 
 # Settings (must load after modules)
 Settings.lua
