@@ -347,15 +347,18 @@ function CombatResModule.OnEvent(event, ...)
   if event == "PLAYER_ENTERING_WORLD" then
     CombatResModule.RefreshDisplay()
 
-  elseif db.enabled then
-    if event == "SPELL_UPDATE_CHARGES" then
-      eventStats.totalCharges  = eventStats.totalCharges + 1
-      eventStats.windowCharges = eventStats.windowCharges + 1
+  elseif event == "SPELL_UPDATE_CHARGES" then
+    eventStats.totalCharges  = eventStats.totalCharges + 1
+    eventStats.windowCharges = eventStats.windowCharges + 1
+    if db.enabled then
       SyncSweeps()
       UpdateDisplay()
       StartTicker()
-    elseif event == "SPELL_UPDATE_COOLDOWN" then
-      eventStats.totalCooldown = eventStats.totalCooldown + 1
+    end
+
+  elseif event == "SPELL_UPDATE_COOLDOWN" then
+    eventStats.totalCooldown = eventStats.totalCooldown + 1
+    if db.enabled then
       SyncSweeps()
       UpdateDisplay()
       StartTicker()
