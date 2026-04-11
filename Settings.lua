@@ -132,9 +132,126 @@ local function InsertElvUIOptions()
         set  = function(_, v) db.Embed.window2 = v end,
       },
 
+      -- ── Healer Mana ───────────────────────────────────────
+      healerManaHeader = {
+        order = 30, type = "header", name = "Healer Mana Display",
+      },
+      healerManaEnabled = {
+        order = 31, type = "toggle",
+        name = "|cff00ff00Enable|r",
+        desc = "Show a movable overlay with each healer's name and mana percentage.\nLowest mana at the top. Drag the frame to reposition.",
+        get  = function() return db.HealerMana.enabled end,
+        set  = function(_, v)
+          db.HealerMana.enabled = v
+          TokukoP.modules.HealerMana.RefreshDisplay()
+        end,
+      },
+      healerManaPreview = {
+        order = 32, type = "execute",
+        name = function()
+          return TokukoP.modules.HealerMana.IsPreview() and "Hide Preview" or "Preview (5 fake healers)"
+        end,
+        desc = "Show 5 fake healers so you can see font/color changes and drag the frame to reposition it.",
+        func = function() TokukoP.modules.HealerMana.TogglePreview() end,
+      },
+      healerManaDisplayMode = {
+        order = 33, type = "select",
+        name  = "Display",
+        desc  = "What to show in the mana column.\nPercent: 93%\nAbsolute: 44.5k\nBoth: 93% 44.5k",
+        values = { percent = "Percent (%)", value = "Absolute (k)", both = "Both" },
+        get  = function() return db.HealerMana.displayMode or "percent" end,
+        set  = function(_, v)
+          db.HealerMana.displayMode = v
+          TokukoP.modules.HealerMana.RefreshDisplay()
+        end,
+      },
+      healerManaFont = {
+        order = 34, type = "select",
+        name  = "Font",
+        values  = TokukoP.modules.HealerMana.FONT_VALUES,
+        sorting = TokukoP.modules.HealerMana.FONT_SORTING,
+        get  = function() return db.HealerMana.font end,
+        set  = function(_, v)
+          db.HealerMana.font = v
+          TokukoP.modules.HealerMana.RefreshFont()
+        end,
+      },
+      healerManaFontSize = {
+        order = 35, type = "range",
+        name  = "Font Size",
+        min = 8, max = 24, step = 1,
+        get  = function() return db.HealerMana.fontSize end,
+        set  = function(_, v)
+          db.HealerMana.fontSize = v
+          TokukoP.modules.HealerMana.RefreshFont()
+        end,
+      },
+      healerManaUseClassColor = {
+        order = 36, type = "toggle",
+        name = "Class Color",
+        desc = "Color each healer's name by their class color.",
+        get  = function() return db.HealerMana.useClassColor end,
+        set  = function(_, v)
+          db.HealerMana.useClassColor = v
+          TokukoP.modules.HealerMana.RefreshDisplay()
+        end,
+      },
+      healerManaColor = {
+        order = 37, type = "color",
+        name  = "Text Color",
+        desc  = "Uniform text color (used when Class Color is off).",
+        hasAlpha = false,
+        disabled = function() return db.HealerMana.useClassColor end,
+        get  = function()
+          local c = db.HealerMana.color
+          return c.r, c.g, c.b
+        end,
+        set  = function(_, r, g, b)
+          db.HealerMana.color = { r = r, g = g, b = b }
+          TokukoP.modules.HealerMana.RefreshDisplay()
+        end,
+      },
+      healerManaTextAlpha = {
+        order = 38, type = "range",
+        name  = "Text Opacity",
+        min = 0, max = 1, step = 0.05, isPercent = true,
+        get  = function() return db.HealerMana.textAlpha end,
+        set  = function(_, v)
+          db.HealerMana.textAlpha = v
+          TokukoP.modules.HealerMana.RefreshDisplay()
+        end,
+      },
+      healerManaBgAlpha = {
+        order = 39, type = "range",
+        name  = "Background Opacity",
+        min = 0, max = 1, step = 0.05, isPercent = true,
+        get  = function() return db.HealerMana.bgAlpha end,
+        set  = function(_, v)
+          db.HealerMana.bgAlpha = v
+          TokukoP.modules.HealerMana.RefreshBgAlpha()
+        end,
+      },
+      healerManaLocked = {
+        order = 40, type = "toggle",
+        name = "Lock Position",
+        desc = "Prevent the frame from being dragged or resized.\nUnlocking will reset the position if the frame is off-screen.",
+        get  = function() return db.HealerMana.locked end,
+        set  = function(_, v) TokukoP.modules.HealerMana.SetLocked(v) end,
+      },
+      healerManaGrowUp = {
+        order = 41, type = "toggle",
+        name = "Grow Upward",
+        desc = "Frame expands upward as healers are added. The bottom edge stays fixed.\nDisabled: expands downward, top edge stays fixed.",
+        get  = function() return db.HealerMana.growUp end,
+        set  = function(_, v)
+          db.HealerMana.growUp = v
+          TokukoP.modules.HealerMana.RefreshGrowDirection()
+        end,
+      },
+
       -- ── Tooltip ───────────────────────────────────────────
       tooltipHeader = {
-        order = 20, type = "header", name = "Tooltip",
+        order = 50, type = "header", name = "Tooltip",
       },
       tooltipEnabled = {
         order = 21, type = "toggle",
