@@ -93,15 +93,36 @@ end
 -- Arithmetic on UnitPower/UnitPowerMax is NOT a safe fallback — those values may
 -- be secret, and doing math on secrets produces errors or garbage.
 local warnedMissingAPI = false
+-- Returns sortVal, displayStr.
+-- "player" unit returns a real 0-1 float  → scale * 100.
+-- Other units return a secret value in 12.x → arithmetic blocked; try display
+-- conversion via pcall chain, fall back to "?%".
 local function GetManaPct(unit)
   if not UnitPowerPercent then
     if not warnedMissingAPI then
       warnedMissingAPI = true
       print("|cffffcc00TokukoP:|r UnitPowerPercent not found — healer mana display unavailable.")
     end
-    return 0
+    return 0, "?%"
   end
-  return (UnitPowerPercent(unit, 0) or 0) * 100  -- returns 0-1 in 12.x, convert to 0-100
+
+  local raw = UnitPowerPercent(unit, 0)
+  if raw == nil then return 0, "?%" end
+
+  -- Attempt arithmetic scale (works for "player" which returns a real 0-1 float)
+  local ok, scaled = pcall(function() return raw * 100 end)
+  if ok then
+    local pct = math.floor(scaled)
+    return scaled, pct .. "%"
+  end
+
+  -- Secret value: can't do arithmetic. Try display conversion without math.
+  -- WoW may allow tostring() on a secret to yield the readable percentage string.
+  local display = "?%"
+  pcall(function() display = tostring(raw) .. "%" end)
+
+  -- Return raw for sorting — comparison operators may still work on secrets.
+  return raw, display
 end
 
 -- ===============================
@@ -279,8 +300,8 @@ local function UpdateDisplay()
     local name = UnitName(unit)
     if not name then return end
     local _, classFilename = UnitClass(unit)
-    local mana = GetManaPct(unit)
-    table.insert(healers, { name = name, mana = mana, class = classFilename })
+    local sortVal, display = GetManaPct(unit)
+    table.insert(healers, { name = name, mana = sortVal, display = display, class = classFilename })
   end
 
   if IsInRaid() then
@@ -302,8 +323,9 @@ local function UpdateDisplay()
     return
   end
 
-  -- Lowest mana first — most urgent healer at the top
-  table.sort(healers, function(a, b) return a.mana < b.mana end)
+  -- Lowest mana first — most urgent healer at the top.
+  -- Comparison on secret values may fail; skip sort if so.
+  pcall(function() table.sort(healers, function(a, b) return a.mana < b.mana end) end)
 
   LayoutLines(#healers)
 
@@ -317,7 +339,7 @@ local function UpdateDisplay()
     nameLines[i]:SetTextColor(r, g, b, db.textAlpha)
     nameLines[i]:SetText(h.name)
     pctLines[i]:SetTextColor(r, g, b, db.textAlpha)
-    pctLines[i]:SetText(math.floor(h.mana) .. "%")
+    pctLines[i]:SetText(h.display)
   end
 
   container:Show()
