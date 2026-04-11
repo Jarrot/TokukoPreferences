@@ -98,8 +98,18 @@ local ScaleTo100 = CurveConstants and CurveConstants.ScaleTo100
 
 local warnedMissingAPI = false
 
--- Percentage column widths per display mode (px).
-local PCT_WIDTH_BY_MODE = { percent = 40, value = 52, both = 82 }
+-- Returns pixel width for the right (mana) column based on display mode and font size.
+-- Uses ~0.65×fontSize per character; different fonts vary, but the frame is resizable.
+local function GetPctWidth(mode, fontSize)
+  local cw = fontSize * 0.65
+  if mode == "percent" then
+    return math.ceil(cw * 5.5)   -- "100%" + margin
+  elseif mode == "value" then
+    return math.ceil(cw * 6.5)   -- "999.9k" or raw 5-digit integer + margin
+  else  -- both: "44.6k 100%"
+    return math.ceil(cw * 12)
+  end
+end
 
 -- Format an absolute mana number as a short string: "45.2k", "999", "1.2M".
 local function FormatManaValue(n)
@@ -140,51 +150,38 @@ local function GetManaPct(unit)
   return pct, display
 end
 
--- Returns the current mana as an absolute number, handling secret values.
--- UnitPower/UnitPowerMax for non-player units are secret in 12.x.
--- Use string.byte to extract digits from the formatted string.
-local function GetManaAbsolute(unit)
-  local cur, maxv
+-- Returns the mana value as a display string (e.g. "45.2k") or nil if unavailable.
+-- UnitPower for non-player units is secret in 12.x — arithmetic is blocked, but
+-- format("%d") produces a tainted displayable integer string (no abbreviation).
+local function GetManaAbsoluteStr(unit)
   local rawCur = UnitPower(unit, 0)
-  local rawMax = UnitPowerMax(unit, 0)
-  if rawCur == nil or rawMax == nil then return nil, nil end
-
-  local function extractInt(raw)
-    -- Direct arithmetic works for "player".
-    local ok, v = pcall(function() return raw + 0 end)
-    if ok then return v end
-    -- Secret path: string.format → tainted string, but string.byte
-    -- may yield untainted byte values we can do arithmetic on.
-    local result
-    pcall(function()
-      local s = string.format("%.0f", raw)  -- e.g. "45230"
-      local n = 0
-      for i = 1, #s do
-        local b = string.byte(s, i)
-        n = n * 10 + (b - 48)
-      end
-      result = n
-    end)
-    return result
-  end
-
-  cur  = extractInt(rawCur)
-  maxv = extractInt(rawMax)
-  return cur, maxv
+  if rawCur == nil then return nil end
+  -- Direct arithmetic works for player / non-restricted contexts.
+  local ok, v = pcall(function() return rawCur + 0 end)
+  if ok then return FormatManaValue(v) end  -- "45.2k"
+  -- Secret: show raw integer (can't divide for abbreviation).
+  local s = nil
+  pcall(function() s = string.format("%d", rawCur) end)
+  return s  -- "45230" tainted-but-displayable, or nil on failure
 end
 
 -- Returns sortVal, displayStr formatted according to db.displayMode.
+-- "both" shows absolute first, then percent: "44.6k 93%"
+-- Falls back to percent-only if absolute value is unavailable.
 local function GetManaInfo(unit)
   local sortVal, pctStr = GetManaPct(unit)
   local mode = TokukoPDB.HealerMana.displayMode or "percent"
   if mode == "percent" then
     return sortVal, pctStr
   elseif mode == "value" then
-    local cur, _ = GetManaAbsolute(unit)
-    return sortVal, FormatManaValue(cur)
-  else  -- "both"
-    local cur, _ = GetManaAbsolute(unit)
-    return sortVal, pctStr .. " " .. FormatManaValue(cur)
+    local valStr = GetManaAbsoluteStr(unit)
+    return sortVal, valStr or pctStr  -- fallback to % if absolute unavailable
+  else  -- "both": absolute first so the more-informative number leads
+    local valStr = GetManaAbsoluteStr(unit)
+    if valStr then
+      return sortVal, valStr .. " " .. pctStr
+    end
+    return sortVal, pctStr  -- fallback to % only
   end
 end
 
@@ -304,7 +301,7 @@ LayoutLines = function(count)
   local totalH = FRAME_PAD * 2 + count * lineH - LINE_PAD
   container:SetHeight(math.max(totalH, 20))
 
-  local pctW  = PCT_WIDTH_BY_MODE[db.displayMode or "percent"] or 40
+  local pctW  = GetPctWidth(db.displayMode or "percent", db.fontSize)
   local nameW = container:GetWidth() - FRAME_PAD * 2 - pctW
   for i = 1, MAX_HEALERS do
     nameLines[i]:ClearAllPoints()
@@ -355,8 +352,8 @@ local function UpdateDisplay()
         pctLines[i]:SetText(pctStr)
       elseif mode == "value" then
         pctLines[i]:SetText(valStr)
-      else
-        pctLines[i]:SetText(pctStr .. " " .. valStr)
+      else  -- both: absolute first, then percent
+        pctLines[i]:SetText(valStr .. " " .. pctStr)
       end
     end
     container:Show()
@@ -507,22 +504,6 @@ function HealerManaModule.Initialize()
   C_Timer.NewTicker(TICK_RATE, UpdateDisplay)
 
   UpdateDisplay()
-end
-
--- /tphmtest — verify real mana API on the player unit, no group/role required
-SLASH_TPHMTEST1 = "/tphmtest"
-SlashCmdList["TPHMTEST"] = function()
-  print("|cff00ccffHealerMana Test:|r")
-  print("  UnitExists(player)=" .. tostring(UnitExists("player")))
-  print("  UnitPowerPercent=" .. tostring(UnitPowerPercent))
-  if UnitPowerPercent then
-    local pct = UnitPowerPercent("player", 0)
-    print("  player mana pct=" .. tostring(pct))
-  end
-  local name = UnitName("player")
-  local _, class = UnitClass("player")
-  local role = UnitGroupRolesAssigned("player")
-  print("  name=" .. tostring(name) .. "  class=" .. tostring(class) .. "  role=" .. tostring(role))
 end
 
 function HealerManaModule.RegisterEvents(frame)

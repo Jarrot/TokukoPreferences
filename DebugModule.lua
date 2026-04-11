@@ -1,7 +1,7 @@
 -- DebugModule.lua
 -- Optional debug commands for TokukoPreferences.
 -- Only loaded if listed in the TOC. Remove from TOC to disable.
--- Commands: /tpdebug, /tpscan, /tpgap
+-- Commands: /tpdebug, /tpscan, /tpgap, /tphmtest
 
 local ADDON_NAME = ...
 local TokukoP = TokukoP
@@ -114,6 +114,51 @@ SlashCmdList["TPSCAN"] = function()
 
   if not Details then print("  Details not loaded.") end
   print("|cff00ccffTokukoP Scan:|r Done.")
+end
+
+-- ===============================
+-- /tphmtest — verify healer mana APIs; useful in different contexts
+--             (solo, party, raid; in/out of combat; in/out of instances)
+-- ===============================
+SLASH_TPHMTEST1 = "/tphmtest"
+SlashCmdList["TPHMTEST"] = function()
+  local ScaleTo100 = CurveConstants and CurveConstants.ScaleTo100
+  print("|cff00ccffHealerMana Test:|r CurveConstants.ScaleTo100=" .. tostring(ScaleTo100))
+  print("  UnitPowerPercent=" .. tostring(UnitPowerPercent))
+
+  -- Player
+  local ok, pct = pcall(UnitPowerPercent, "player", 0, true, ScaleTo100)
+  local rawPct   = UnitPowerPercent and UnitPowerPercent("player", 0) or "n/a"
+  print("  player: pcall ok=" .. tostring(ok) .. " scaled=" .. tostring(pct)
+        .. "  raw=" .. tostring(rawPct))
+
+  local powerOk, power = pcall(UnitPower, "player", 0)
+  print("  player UnitPower: ok=" .. tostring(powerOk) .. " val=" .. tostring(power))
+
+  -- Party members
+  if IsInRaid() then
+    for i = 1, math.min(GetNumGroupMembers(), 5) do
+      local unit = "raid" .. i
+      if UnitExists(unit) then
+        local uok, upct = pcall(UnitPowerPercent, unit, 0, true, ScaleTo100)
+        local uname = UnitName(unit) or "?"
+        print("  " .. unit .. " (" .. uname .. "): ok=" .. tostring(uok)
+              .. " pct=" .. tostring(upct))
+      end
+    end
+  elseif IsInGroup() then
+    for i = 1, GetNumSubgroupMembers() do
+      local unit = "party" .. i
+      if UnitExists(unit) then
+        local uok, upct = pcall(UnitPowerPercent, unit, 0, true, ScaleTo100)
+        local uname = UnitName(unit) or "?"
+        print("  " .. unit .. " (" .. uname .. "): ok=" .. tostring(uok)
+              .. " pct=" .. tostring(upct))
+      end
+    end
+  else
+    print("  (not in group)")
+  end
 end
 
 -- ===============================
