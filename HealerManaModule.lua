@@ -129,37 +129,66 @@ local function GetManaPct(unit)
     return scaled, pct .. "%"
   end
 
-  -- Secret value: string.format() accepts secrets and produces an untainted string.
+  -- Secret value path (12.x): string.format accepts secrets but produces a TAINTED
+  -- string — tonumber on tainted strings is also blocked.
+  -- Strategy: use string.sub to pull digit chars from "0.XXYY", then string.byte
+  -- to convert chars to integers (byte values may be untainted).
+  -- "0.5700" → sub(3,4) = "57" → display "57%"
+  -- "1.0000" → first char "1" → 100%
   local display = "?%"
   local sortVal = 0
   pcall(function()
-    local s = string.format("%.4f", raw)  -- e.g. "0.9315"
-    local n = tonumber(s)
-    if n then
-      local pct = math.floor(n * 100)
-      display = pct .. "%"
-      sortVal = pct
+    local s = string.format("%.4f", raw)  -- "0.5700" or "1.0000" (tainted)
+    if string.sub(s, 1, 1) == "1" then
+      display = "100%"
+      sortVal = 100
+    else
+      local digits = string.sub(s, 3, 4)  -- "57" from "0.5700"
+      display = digits .. "%"
+      -- string.byte may return untainted integers (ASCII codes minus 48 = digit value)
+      pcall(function()
+        local b1, b2 = string.byte(digits, 1, 2)
+        sortVal = (b1 - 48) * 10 + (b2 - 48)
+      end)
     end
   end)
+  -- Last resort: show raw decimal with "?" so it's clear it's unscaled
   if display == "?%" then
-    pcall(function() display = string.format("%.2f", raw) end)  -- last resort
+    pcall(function() display = string.format("%.2f", raw) .. "?" end)
   end
   return sortVal, display
 end
 
 -- Returns the current mana as an absolute number, handling secret values.
+-- UnitPower/UnitPowerMax for non-player units are secret in 12.x.
+-- Use string.byte to extract digits from the formatted string.
 local function GetManaAbsolute(unit)
   local cur, maxv
   local rawCur = UnitPower(unit, 0)
   local rawMax = UnitPowerMax(unit, 0)
   if rawCur == nil or rawMax == nil then return nil, nil end
-  -- Direct arithmetic for "player"; secret path for raid/party.
-  if not pcall(function() cur = rawCur + 0 end) then
-    pcall(function() cur = tonumber(string.format("%.0f", rawCur)) end)
+
+  local function extractInt(raw)
+    -- Direct arithmetic works for "player".
+    local ok, v = pcall(function() return raw + 0 end)
+    if ok then return v end
+    -- Secret path: string.format → tainted string, but string.byte
+    -- may yield untainted byte values we can do arithmetic on.
+    local result
+    pcall(function()
+      local s = string.format("%.0f", raw)  -- e.g. "45230"
+      local n = 0
+      for i = 1, #s do
+        local b = string.byte(s, i)
+        n = n * 10 + (b - 48)
+      end
+      result = n
+    end)
+    return result
   end
-  if not pcall(function() maxv = rawMax + 0 end) then
-    pcall(function() maxv = tonumber(string.format("%.0f", rawMax)) end)
-  end
+
+  cur  = extractInt(rawCur)
+  maxv = extractInt(rawMax)
   return cur, maxv
 end
 
