@@ -50,7 +50,8 @@ end
 
 local container    = nil
 local rebirthIcon  = nil
-local reincarIcon  = nil
+local reincarIcon  = nil   -- nil on non-Shaman
+local isShaman     = false -- set in Initialize
 local db           = nil
 local tickerHandle = nil
 
@@ -136,20 +137,21 @@ local function UpdateDisplay()
     rebirthTimer:Hide()
   end
 
-  -- ── Reincarnation ────────────────────────────────────────────────
-  local start, dur = GetReincarCDInfo()
-  local reincarTimer = reincarIcon._timerLabel
-  -- dur > 1.5 distinguishes real CD from GCD blip
-  if dur and dur > 1.5 then
-    local rem = start + dur - GetTime()
-    if rem > 0 then
-      reincarTimer:SetText(FormatTime(rem))
-      reincarTimer:Show()
+  -- ── Reincarnation (Shaman only) ──────────────────────────────────
+  if reincarIcon then
+    local start, dur = GetReincarCDInfo()
+    local reincarTimer = reincarIcon._timerLabel
+    if dur and dur > 1.5 then
+      local rem = start + dur - GetTime()
+      if rem > 0 then
+        reincarTimer:SetText(FormatTime(rem))
+        reincarTimer:Show()
+      else
+        reincarTimer:Hide()
+      end
     else
       reincarTimer:Hide()
     end
-  else
-    reincarTimer:Hide()
   end
 end
 
@@ -163,11 +165,13 @@ local function SyncSweeps()
     rebirthIcon._cooldown:Clear()
   end
 
-  local start, dur = GetReincarCDInfo()
-  if dur and dur > 1.5 then
-    reincarIcon._cooldown:SetCooldown(start, dur)
-  else
-    reincarIcon._cooldown:Clear()
+  if reincarIcon then
+    local start, dur = GetReincarCDInfo()
+    if dur and dur > 1.5 then
+      reincarIcon._cooldown:SetCooldown(start, dur)
+    else
+      reincarIcon._cooldown:Clear()
+    end
   end
 end
 
@@ -243,8 +247,9 @@ end
 local function BuildContainer()
   if container then return end
 
+  local totalW = isShaman and (ICON_SIZE * 2 + ICON_GAP) or ICON_SIZE
   container = CreateFrame("Frame", "TokukoPCombatResFrame", UIParent)
-  container:SetSize(ICON_SIZE * 2 + ICON_GAP, ICON_SIZE)
+  container:SetSize(totalW, ICON_SIZE)
   container:SetPoint("CENTER", UIParent, "CENTER", db.x, db.y)
   container:SetClampedToScreen(true)
   container:SetMovable(true)
@@ -263,8 +268,10 @@ local function BuildContainer()
   rebirthIcon = BuildIconFrame(container, REBIRTH_ID, true)
   rebirthIcon:SetPoint("LEFT", container, "LEFT", 0, 0)
 
-  reincarIcon = BuildIconFrame(container, REINCARNATION_ID, false)
-  reincarIcon:SetPoint("LEFT", rebirthIcon, "RIGHT", ICON_GAP, 0)
+  if isShaman then
+    reincarIcon = BuildIconFrame(container, REINCARNATION_ID, false)
+    reincarIcon:SetPoint("LEFT", rebirthIcon, "RIGHT", ICON_GAP, 0)
+  end
 
   CombatResModule.RefreshFonts()
   container:Hide()
@@ -278,7 +285,9 @@ function CombatResModule.RefreshFonts()
   if not container then return end
   local fontPath = GetFont()
   rebirthIcon._timerLabel:SetFont(fontPath, db.timerFontSize, "OUTLINE")
-  reincarIcon._timerLabel:SetFont(fontPath, db.timerFontSize, "OUTLINE")
+  if reincarIcon then
+    reincarIcon._timerLabel:SetFont(fontPath, db.timerFontSize, "OUTLINE")
+  end
   if rebirthIcon._countLabel then
     rebirthIcon._countLabel:SetFont(fontPath, db.countFontSize, "OUTLINE")
   end
@@ -310,6 +319,8 @@ function CombatResModule.Initialize()
   TokukoPDB.CombatRes = TokukoPDB.CombatRes or {}
   TokukoP.MergeDefaults(TokukoPDB.CombatRes, DEFAULTS)
   db = TokukoPDB.CombatRes
+
+  isShaman = (select(2, UnitClass("player")) == "SHAMAN")
 
   -- Populate FONT_VALUES from LSM if available (same pattern as HealerManaModule)
   local LSM = LibStub and LibStub("LibSharedMedia-3.0", true)
