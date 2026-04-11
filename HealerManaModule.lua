@@ -116,13 +116,20 @@ local function GetManaPct(unit)
     return scaled, pct .. "%"
   end
 
-  -- Secret value: can't do arithmetic. Try display conversion without math.
-  -- WoW may allow tostring() on a secret to yield the readable percentage string.
+  -- Secret value: arithmetic blocked directly. tostring() yields the readable
+  -- decimal (e.g. "0.93..."), tonumber() converts it back to an unprotected
+  -- Lua number we can safely multiply.
   local display = "?%"
-  pcall(function() display = tostring(raw) .. "%" end)
-
-  -- Return raw for sorting — comparison operators may still work on secrets.
-  return raw, display
+  local sortVal = 0
+  pcall(function()
+    local n = tonumber(tostring(raw))
+    if n then
+      local pct = math.floor(n * 100)
+      display  = pct .. "%"
+      sortVal  = pct
+    end
+  end)
+  return sortVal, display
 end
 
 -- ===============================
