@@ -116,19 +116,24 @@ local function GetManaPct(unit)
     return scaled, pct .. "%"
   end
 
-  -- Secret value: arithmetic blocked directly. tostring() yields the readable
-  -- decimal (e.g. "0.93..."), tonumber() converts it back to an unprotected
-  -- Lua number we can safely multiply.
+  -- Secret value path (12.x raid/party units): arithmetic is blocked on the
+  -- secret Lua number. string.format() is documented to accept secrets and
+  -- produces an untainted string we can tonumber() safely.
   local display = "?%"
   local sortVal = 0
   pcall(function()
-    local n = tonumber(tostring(raw))
+    local s = string.format("%.4f", raw)  -- e.g. "0.9315"
+    local n = tonumber(s)
     if n then
       local pct = math.floor(n * 100)
-      display  = pct .. "%"
-      sortVal  = pct
+      display = pct .. "%"
+      sortVal = pct
     end
   end)
+  -- Last resort: show the raw decimal so it's clear data is present but unscaled
+  if display == "?%" then
+    pcall(function() display = string.format("%.2f", raw) end)
+  end
   return sortVal, display
 end
 

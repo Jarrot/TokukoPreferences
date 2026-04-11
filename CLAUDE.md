@@ -95,7 +95,7 @@ Frame backdrop: `frame:SetTemplate("Default")`
 - Right-click > = hide/show meters, not detach
 - `LE_PARTY_CATEGORY_INSTANCE` removed in 12.0 — use raw `2`
 - `UnitPowerPercent` returns **0–1** in 12.x (not 0–100) — multiply by 100 before displaying
-- For non-player units, `UnitPowerPercent` returns a **secret value** — arithmetic blocked. Workaround: `tonumber(tostring(secret))` yields an unprotected Lua number safe to multiply
+- For non-player units, `UnitPowerPercent` returns a **secret value** — arithmetic blocked. `tonumber(tostring(secret))` does NOT work (tainted string blocks tonumber too). Correct workaround: `tonumber(string.format("%.4f", raw))` — `string.format` accepts secrets and produces an untainted string
 
 ## Git Branches
 
