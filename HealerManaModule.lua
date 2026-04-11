@@ -101,13 +101,15 @@ local warnedMissingAPI = false
 -- Returns pixel width for the right (mana) column based on display mode and font size.
 -- Uses ~0.65×fontSize per character; different fonts vary, but the frame is resizable.
 local function GetPctWidth(mode, fontSize)
+  -- Tight fit: just enough for worst-case text so names get maximum room.
+  -- Frame is resizable if more space is needed.
   local cw = fontSize * 0.65
   if mode == "percent" then
-    return math.ceil(cw * 5.5)   -- "100%" + margin
+    return math.ceil(cw * 4.2)   -- "100%"
   elseif mode == "value" then
-    return math.ceil(cw * 6.5)   -- "999.9k" or raw 5-digit integer + margin
+    return math.ceil(cw * 5.5)   -- "999.9k"
   else  -- both: "44.6k  100%"
-    return math.ceil(cw * 13)
+    return math.ceil(cw * 9.0)
   end
 end
 
@@ -242,9 +244,10 @@ local function BuildContainer()
     if lastCount > 0 then LayoutLines(lastCount) end
   end)
 
-  -- Resize handle — right edge drag, hidden when locked
+  -- Resize handle — right edge drag, hidden when locked.
+  -- Visual is a thin vertical bar (↔ hint) rather than a corner-resize icon.
   local handle = CreateFrame("Frame", nil, f)
-  handle:SetSize(12, 30)
+  handle:SetSize(6, f:GetHeight())
   handle:SetPoint("RIGHT", f, "RIGHT", 0, 0)
   handle:EnableMouse(true)
   handle:SetScript("OnMouseDown", function()
@@ -254,9 +257,11 @@ local function BuildContainer()
     f:StopMovingOrSizing()
   end)
   local htex = handle:CreateTexture(nil, "OVERLAY")
-  htex:SetTexture("Interface\\ChatFrame\\UI-ChatIM-SizeGrabber-Up")
-  htex:SetSize(12, 12)
+  htex:SetColorTexture(0.8, 0.8, 0.8, 0.5)  -- thin semi-transparent vertical bar
+  htex:SetSize(2, 14)
   htex:SetPoint("CENTER")
+  handle:SetShown(not db.locked)
+  f._resizeHandle = handle
 
   -- Pre-allocate FontString pairs (name left, percentage right)
   for i = 1, MAX_HEALERS do
@@ -458,6 +463,9 @@ end
 
 function HealerManaModule.SetLocked(v)
   TokukoPDB.HealerMana.locked = v
+  if container and container._resizeHandle then
+    container._resizeHandle:SetShown(not v)
+  end
   if not v and IsOffScreen() then
     HealerManaModule.ResetPosition()
   end
