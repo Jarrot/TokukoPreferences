@@ -106,8 +106,8 @@ local function GetPctWidth(mode, fontSize)
     return math.ceil(cw * 5.5)   -- "100%" + margin
   elseif mode == "value" then
     return math.ceil(cw * 6.5)   -- "999.9k" or raw 5-digit integer + margin
-  else  -- both: "44.6k 100%"
-    return math.ceil(cw * 12)
+  else  -- both: "44.6k  100%"
+    return math.ceil(cw * 13)
   end
 end
 
@@ -179,7 +179,7 @@ local function GetManaInfo(unit)
   else  -- "both": absolute first so the more-informative number leads
     local valStr = GetManaAbsoluteStr(unit)
     if valStr then
-      return sortVal, valStr .. " " .. pctStr
+      return sortVal, valStr .. "  " .. pctStr
     end
     return sortVal, pctStr  -- fallback to % only
   end
@@ -353,7 +353,7 @@ local function UpdateDisplay()
       elseif mode == "value" then
         pctLines[i]:SetText(valStr)
       else  -- both: absolute first, then percent
-        pctLines[i]:SetText(valStr .. " " .. pctStr)
+        pctLines[i]:SetText(valStr .. "  " .. pctStr)
       end
     end
     container:Show()
