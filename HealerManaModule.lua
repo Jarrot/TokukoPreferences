@@ -25,6 +25,7 @@ HealerManaModule.DEFAULTS = {
   posX          = 0,
   posY          = 200,
   width         = 200,
+  displayMode   = "percent",  -- "percent", "value", "both"
 }
 
 -- ===============================
@@ -68,11 +69,11 @@ local bgR, bgG, bgB         = 0, 0, 0      -- set in BuildContainer; used by Ref
 local borderR, borderG, borderB = 0.35, 0.35, 0.35
 
 local FAKE_HEALERS = {
-  { name = "Tokukheal",  mana = 12, class = "PRIEST"  },
-  { name = "Jarrotdruid",mana = 45, class = "DRUID"   },
-  { name = "Holypala",   mana = 67, class = "PALADIN" },
-  { name = "Mistweave",  mana = 81, class = "MONK"    },
-  { name = "Restosham",  mana = 93, class = "SHAMAN"  },
+  { name = "Tokukheal",  mana = 12, manaVal =  5750, class = "PRIEST"  },
+  { name = "Jarrotdruid",mana = 45, manaVal = 21600, class = "DRUID"   },
+  { name = "Holypala",   mana = 67, manaVal = 32160, class = "PALADIN" },
+  { name = "Mistweave",  mana = 81, manaVal = 38880, class = "MONK"    },
+  { name = "Restosham",  mana = 93, manaVal = 44640, class = "SHAMAN"  },
 }
 
 -- ===============================
@@ -93,10 +94,22 @@ end
 -- Arithmetic on UnitPower/UnitPowerMax is NOT a safe fallback — those values may
 -- be secret, and doing math on secrets produces errors or garbage.
 local warnedMissingAPI = false
--- Returns sortVal, displayStr.
--- "player" unit returns a real 0-1 float  → scale * 100.
--- Other units return a secret value in 12.x → arithmetic blocked; try display
--- conversion via pcall chain, fall back to "?%".
+
+-- Percentage column widths per display mode (px).
+local PCT_WIDTH_BY_MODE = { percent = 40, value = 52, both = 82 }
+
+-- Format an absolute mana number as a short string: "45.2k", "999", "1.2M".
+local function FormatManaValue(n)
+  if not n then return "?" end
+  n = math.floor(n)
+  if n >= 1000000 then return string.format("%.1fM", n / 1000000) end
+  if n >= 1000    then return string.format("%.1fk", n / 1000)    end
+  return tostring(n)
+end
+
+-- Returns sortVal (0-100 float), pctDisplay ("93%").
+-- "player" unit: UnitPowerPercent returns a real 0-1 float → scale directly.
+-- raid/party units: returns a secret in 12.x → use string.format workaround.
 local function GetManaPct(unit)
   if not UnitPowerPercent then
     if not warnedMissingAPI then
@@ -109,16 +122,14 @@ local function GetManaPct(unit)
   local raw = UnitPowerPercent(unit, 0)
   if raw == nil then return 0, "?%" end
 
-  -- Attempt arithmetic scale (works for "player" which returns a real 0-1 float)
+  -- Direct arithmetic works for "player" (real 0-1 float).
   local ok, scaled = pcall(function() return raw * 100 end)
   if ok then
     local pct = math.floor(scaled)
     return scaled, pct .. "%"
   end
 
-  -- Secret value path (12.x raid/party units): arithmetic is blocked on the
-  -- secret Lua number. string.format() is documented to accept secrets and
-  -- produces an untainted string we can tonumber() safely.
+  -- Secret value: string.format() accepts secrets and produces an untainted string.
   local display = "?%"
   local sortVal = 0
   pcall(function()
@@ -130,11 +141,41 @@ local function GetManaPct(unit)
       sortVal = pct
     end
   end)
-  -- Last resort: show the raw decimal so it's clear data is present but unscaled
   if display == "?%" then
-    pcall(function() display = string.format("%.2f", raw) end)
+    pcall(function() display = string.format("%.2f", raw) end)  -- last resort
   end
   return sortVal, display
+end
+
+-- Returns the current mana as an absolute number, handling secret values.
+local function GetManaAbsolute(unit)
+  local cur, maxv
+  local rawCur = UnitPower(unit, 0)
+  local rawMax = UnitPowerMax(unit, 0)
+  if rawCur == nil or rawMax == nil then return nil, nil end
+  -- Direct arithmetic for "player"; secret path for raid/party.
+  if not pcall(function() cur = rawCur + 0 end) then
+    pcall(function() cur = tonumber(string.format("%.0f", rawCur)) end)
+  end
+  if not pcall(function() maxv = rawMax + 0 end) then
+    pcall(function() maxv = tonumber(string.format("%.0f", rawMax)) end)
+  end
+  return cur, maxv
+end
+
+-- Returns sortVal, displayStr formatted according to db.displayMode.
+local function GetManaInfo(unit)
+  local sortVal, pctStr = GetManaPct(unit)
+  local mode = TokukoPDB.HealerMana.displayMode or "percent"
+  if mode == "percent" then
+    return sortVal, pctStr
+  elseif mode == "value" then
+    local cur, _ = GetManaAbsolute(unit)
+    return sortVal, FormatManaValue(cur)
+  else  -- "both"
+    local cur, _ = GetManaAbsolute(unit)
+    return sortVal, pctStr .. " " .. FormatManaValue(cur)
+  end
 end
 
 -- ===============================
@@ -246,8 +287,6 @@ local function ApplyFont()
   end
 end
 
-local PCT_WIDTH = 38  -- px reserved on the right for "100%" at default font size
-
 LayoutLines = function(count)
   lastCount = count
   local db     = TokukoPDB.HealerMana
@@ -255,7 +294,8 @@ LayoutLines = function(count)
   local totalH = FRAME_PAD * 2 + count * lineH - LINE_PAD
   container:SetHeight(math.max(totalH, 20))
 
-  local nameW = container:GetWidth() - FRAME_PAD * 2 - PCT_WIDTH
+  local pctW  = PCT_WIDTH_BY_MODE[db.displayMode or "percent"] or 40
+  local nameW = container:GetWidth() - FRAME_PAD * 2 - pctW
   for i = 1, MAX_HEALERS do
     nameLines[i]:ClearAllPoints()
     pctLines[i]:ClearAllPoints()
@@ -265,7 +305,7 @@ LayoutLines = function(count)
       nameLines[i]:SetWidth(nameW)
       nameLines[i]:Show()
       pctLines[i]:SetPoint("TOPRIGHT", container, "TOPRIGHT", -FRAME_PAD, yOff)
-      pctLines[i]:SetWidth(PCT_WIDTH)
+      pctLines[i]:SetWidth(pctW)
       pctLines[i]:Show()
     else
       nameLines[i]:Hide()
@@ -287,6 +327,7 @@ local function UpdateDisplay()
   end
 
   if previewMode then
+    local mode = db.displayMode or "percent"
     LayoutLines(#FAKE_HEALERS)
     for i, h in ipairs(FAKE_HEALERS) do
       local r, g, b
@@ -298,7 +339,15 @@ local function UpdateDisplay()
       nameLines[i]:SetTextColor(r, g, b, db.textAlpha)
       nameLines[i]:SetText(h.name)
       pctLines[i]:SetTextColor(r, g, b, db.textAlpha)
-      pctLines[i]:SetText(h.mana .. "%")
+      local pctStr = h.mana .. "%"
+      local valStr = FormatManaValue(h.manaVal)
+      if mode == "percent" then
+        pctLines[i]:SetText(pctStr)
+      elseif mode == "value" then
+        pctLines[i]:SetText(valStr)
+      else
+        pctLines[i]:SetText(pctStr .. " " .. valStr)
+      end
     end
     container:Show()
     return
@@ -312,7 +361,7 @@ local function UpdateDisplay()
     local name = UnitName(unit)
     if not name then return end
     local _, classFilename = UnitClass(unit)
-    local sortVal, display = GetManaPct(unit)
+    local sortVal, display = GetManaInfo(unit)
     table.insert(healers, { name = name, mana = sortVal, display = display, class = classFilename })
   end
 

@@ -154,8 +154,19 @@ local function InsertElvUIOptions()
         desc = "Show 5 fake healers so you can see font/color changes and drag the frame to reposition it.",
         func = function() TokukoP.modules.HealerMana.TogglePreview() end,
       },
-      healerManaFont = {
+      healerManaDisplayMode = {
         order = 33, type = "select",
+        name  = "Display",
+        desc  = "What to show in the mana column.\nPercent: 93%\nAbsolute: 44.5k\nBoth: 93% 44.5k",
+        values = { percent = "Percent (%)", value = "Absolute (k)", both = "Both" },
+        get  = function() return db.HealerMana.displayMode or "percent" end,
+        set  = function(_, v)
+          db.HealerMana.displayMode = v
+          TokukoP.modules.HealerMana.RefreshDisplay()
+        end,
+      },
+      healerManaFont = {
+        order = 34, type = "select",
         name  = "Font",
         values  = TokukoP.modules.HealerMana.FONT_VALUES,
         sorting = TokukoP.modules.HealerMana.FONT_SORTING,
@@ -166,7 +177,7 @@ local function InsertElvUIOptions()
         end,
       },
       healerManaFontSize = {
-        order = 34, type = "range",
+        order = 35, type = "range",
         name  = "Font Size",
         min = 8, max = 24, step = 1,
         get  = function() return db.HealerMana.fontSize end,
@@ -176,7 +187,7 @@ local function InsertElvUIOptions()
         end,
       },
       healerManaUseClassColor = {
-        order = 35, type = "toggle",
+        order = 36, type = "toggle",
         name = "Class Color",
         desc = "Color each healer's name by their class color.",
         get  = function() return db.HealerMana.useClassColor end,
@@ -186,7 +197,7 @@ local function InsertElvUIOptions()
         end,
       },
       healerManaColor = {
-        order = 36, type = "color",
+        order = 37, type = "color",
         name  = "Text Color",
         desc  = "Uniform text color (used when Class Color is off).",
         hasAlpha = false,
@@ -201,7 +212,7 @@ local function InsertElvUIOptions()
         end,
       },
       healerManaTextAlpha = {
-        order = 37, type = "range",
+        order = 38, type = "range",
         name  = "Text Opacity",
         min = 0, max = 1, step = 0.05, isPercent = true,
         get  = function() return db.HealerMana.textAlpha end,
@@ -211,7 +222,7 @@ local function InsertElvUIOptions()
         end,
       },
       healerManaBgAlpha = {
-        order = 38, type = "range",
+        order = 39, type = "range",
         name  = "Background Opacity",
         min = 0, max = 1, step = 0.05, isPercent = true,
         get  = function() return db.HealerMana.bgAlpha end,
@@ -221,14 +232,14 @@ local function InsertElvUIOptions()
         end,
       },
       healerManaLocked = {
-        order = 39, type = "toggle",
+        order = 40, type = "toggle",
         name = "Lock Position",
         desc = "Prevent the frame from being dragged or resized.\nUnlocking will reset the position if the frame is off-screen.",
         get  = function() return db.HealerMana.locked end,
         set  = function(_, v) TokukoP.modules.HealerMana.SetLocked(v) end,
       },
       healerManaGrowUp = {
-        order = 40, type = "toggle",
+        order = 41, type = "toggle",
         name = "Grow Upward",
         desc = "Frame expands upward as healers are added. The bottom edge stays fixed.\nDisabled: expands downward, top edge stays fixed.",
         get  = function() return db.HealerMana.growUp end,
