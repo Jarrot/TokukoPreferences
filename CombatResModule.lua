@@ -327,8 +327,8 @@ function CombatResModule.Initialize()
 end
 
 function CombatResModule.RegisterEvents(frame)
-  frame:RegisterEvent("COMBAT_RESURRECTION_CHARGE_CHANGED")
-  frame:RegisterEvent("SPELL_UPDATE_COOLDOWN")
+  frame:RegisterEvent("SPELL_UPDATE_CHARGES")   -- battle res charge gained/spent
+  frame:RegisterEvent("SPELL_UPDATE_COOLDOWN")  -- Reincarnation CD changes
   frame:RegisterEvent("PLAYER_ENTERING_WORLD")
 end
 
@@ -339,11 +339,7 @@ function CombatResModule.OnEvent(event, ...)
     CombatResModule.RefreshDisplay()
 
   elseif db.enabled then
-    if event == "COMBAT_RESURRECTION_CHARGE_CHANGED" then
-      SyncSweeps()
-      UpdateDisplay()
-
-    elseif event == "SPELL_UPDATE_COOLDOWN" then
+    if event == "SPELL_UPDATE_CHARGES" or event == "SPELL_UPDATE_COOLDOWN" then
       SyncSweeps()
       UpdateDisplay()
       StartTicker()
