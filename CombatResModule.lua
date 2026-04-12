@@ -260,9 +260,9 @@ local function BuildContainer()
   end)
   container:SetScript("OnDragStop", function(self)
     self:StopMovingOrSizing()
-    local _, _, _, x, y = self:GetPoint()
-    db.x = x
-    db.y = y
+    local ux, uy = UIParent:GetCenter()
+    db.x = self:GetLeft() - ux + self:GetWidth()  / 2
+    db.y = self:GetTop()  - uy - self:GetHeight() / 2
   end)
 
   rebirthIcon = BuildIconFrame(container, REBIRTH_ID, true)
