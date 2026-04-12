@@ -501,16 +501,29 @@ end
 function EmbedModule.OnEvent(event, ...)
   if event == "PLAYER_ENTERING_WORLD" then
     if not panelFrame then panelFrame = GetElvUIRightPanel() end
-    -- Hook toggle button as early as possible
     C_Timer.After(1, function() HookToggleButton() end)
     local db = TokukoPDB.Embed
-    if db and db.enabled and not db.combatOnly and not embedded then
-      -- 6s defer: ElvUI ~1s, Details ~3-4s to fully restore windows
-      C_Timer.After(6, function()
-        if db.enabled and not embedded and not InCombatLockdown() then
-          DoEmbed()
-        end
-      end)
+    if db and db.enabled then
+      if embedded then
+        -- Already embedded: loading screen may have let Details restore its chrome.
+        -- Wait for Details to finish its own post-load restore, then re-hide and reposition.
+        C_Timer.After(4, function()
+          if embedded then
+            TryHideChrome(meterFrame1)
+            TryHideChrome(meterFrame2)
+            PositionFrames()
+            StartRepositionTimer()
+          end
+        end)
+      elseif not db.combatOnly then
+        -- Not embedded yet: initial login / UI reload path.
+        -- 6s defer: ElvUI ~1s, Details ~3-4s to fully restore windows.
+        C_Timer.After(6, function()
+          if db.enabled and not embedded and not InCombatLockdown() then
+            DoEmbed()
+          end
+        end)
+      end
     end
   elseif event == "PLAYER_REGEN_DISABLED" then
     HandleCombatState(true)
