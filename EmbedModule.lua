@@ -509,8 +509,19 @@ function EmbedModule.OnEvent(event, ...)
         -- Wait for Details to finish its own post-load restore, then re-hide and reposition.
         C_Timer.After(4, function()
           if embedded then
-            TryHideChrome(meterFrame1)
-            TryHideChrome(meterFrame2)
+            local function rehideFrame(frame)
+              if not frame then return end
+              TryHideChrome(frame)
+              pcall(function()
+                local inst = frame._instance or frame.instance
+                if inst then
+                  if inst.rowframe then inst.rowframe:SetFrameStrata("MEDIUM") end
+                  inst:LockInstance(true)
+                end
+              end)
+            end
+            rehideFrame(meterFrame1)
+            rehideFrame(meterFrame2)
             PositionFrames()
             StartRepositionTimer()
           end
