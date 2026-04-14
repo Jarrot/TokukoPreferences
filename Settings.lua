@@ -302,6 +302,16 @@ local function InsertElvUIOptions()
           TokukoP.modules.CombatRes.RefreshFonts()
         end,
       },
+      combatResElvuiIcons = {
+        order = 48, type = "toggle",
+        name  = "ElvUI Icon Style",
+        desc  = "Apply ElvUI's icon crop and backdrop border to the Rebirth/Reincarnation icons.\nGives a cleaner look matching the rest of ElvUI's UI.",
+        get   = function() return db.CombatRes.elvuiIcons end,
+        set   = function(_, v)
+          db.CombatRes.elvuiIcons = v
+          TokukoP.modules.CombatRes.RebuildAndRefresh()
+        end,
+      },
 
       -- ── Tooltip ───────────────────────────────────────────
       tooltipHeader = {

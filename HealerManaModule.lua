@@ -571,10 +571,16 @@ end
 function HealerManaModule.RegisterEvents(frame)
   frame:RegisterEvent("GROUP_ROSTER_UPDATE")
   frame:RegisterEvent("PLAYER_ENTERING_WORLD")
+  frame:RegisterEvent("PLAYER_SPECIALIZATION_CHANGED")
 end
 
 function HealerManaModule.OnEvent(event, ...)
   if event == "GROUP_ROSTER_UPDATE" or event == "PLAYER_ENTERING_WORLD" then
+    UpdateDisplay()
+  elseif event == "PLAYER_SPECIALIZATION_CHANGED" then
+    -- ElvUI refreshes SetTemplate("Default") frames on spec change, resetting
+    -- backdrop alpha to 1.0. Reapply our stored bgAlpha and refresh healer list.
+    ApplyBgAlpha()
     UpdateDisplay()
   end
 end

@@ -23,6 +23,7 @@ local ICON_GAP  = 4
 local DEFAULTS = {
   enabled       = false,
   locked        = false,
+  elvuiIcons    = true,
   font          = "Fonts\\FRIZQT__.TTF",
   timerFontSize = 14,
   countFontSize = 12,
@@ -67,6 +68,13 @@ CombatResModule._eventStats = eventStats
 -- ===============================
 -- Helpers
 -- ===============================
+
+local function GetSkins()
+  if not ElvUI then return nil end
+  local ok, E = pcall(function() return unpack(ElvUI) end)
+  if not (ok and E) then return nil end
+  return E:GetModule("Skins", true)
+end
 
 local function GetFont()
   local LSM = LibStub and LibStub("LibSharedMedia-3.0", true)
@@ -202,12 +210,18 @@ local function BuildIconFrame(parent, spellID, withCountBadge)
   local f = CreateFrame("Frame", nil, parent)
   f:SetSize(ICON_SIZE, ICON_SIZE)
 
-  -- Icon texture with standard WoW border crop
+  -- Icon texture
   local tex = f:CreateTexture(nil, "BACKGROUND")
   tex:SetAllPoints(f)
   local iconPath = C_Spell.GetSpellTexture(spellID)
-  if iconPath then
-    tex:SetTexture(iconPath)
+  if iconPath then tex:SetTexture(iconPath) end
+
+  -- Icon style: ElvUI backdrop + tighter crop, or plain crop
+  if db.elvuiIcons then
+    local S = GetSkins()
+    if S and S.HandleIcon then pcall(S.HandleIcon, S, tex, true) end
+    tex:SetTexCoord(0.12, 0.88, 0.12, 0.88)
+  else
     tex:SetTexCoord(0.08, 0.92, 0.08, 0.92)
   end
 
@@ -309,6 +323,18 @@ end
 
 function CombatResModule.SetLocked(v)
   db.locked = v
+end
+
+
+function CombatResModule.RebuildAndRefresh()
+  StopTicker()
+  if container then
+    container:Hide()
+    container   = nil
+    rebirthIcon = nil
+    reincarIcon = nil
+  end
+  CombatResModule.RefreshDisplay()
 end
 
 -- ===============================
