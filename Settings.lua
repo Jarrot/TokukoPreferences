@@ -315,12 +315,12 @@ local function InsertElvUIOptions()
 
       -- ── Pet Reminder ──────────────────────────────────────
       petReminderHeader = {
-        order = 60, type = "header", name = "Pet Reminder (Hunter / Warlock)",
+        order = 60, type = "header", name = "Pet Reminder (Hunter / Warlock / Unholy DK)",
       },
       petReminderEnabled = {
         order = 61, type = "toggle",
         name  = "|cff00ff00Enable|r",
-        desc  = "Show a flashing on-screen warning when you have no active pet.\nAuto-detects Hunter and Warlock. No-op on other classes.",
+        desc  = "Show a flashing on-screen warning when you have no active pet.\nHunter: all specs (Lone Wolf removed in 11.1).\nWarlock: all specs.\nDeath Knight: Unholy only (ghoul). Hides automatically when you swap to Blood or Frost.",
         get   = function() return db.PetReminder.enabled end,
         set   = function(_, v)
           db.PetReminder.enabled = v

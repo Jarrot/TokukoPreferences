@@ -12,7 +12,16 @@ TokukoP.modules.PetReminder = PetReminderModule
 -- Constants
 -- ===============================
 
-local PET_CLASSES = { HUNTER = true, WARLOCK = true }
+-- Classes that can ever need the warning (gate for event registration).
+-- Spec-specific logic is handled in ShouldWarn() at runtime.
+local ELIGIBLE_CLASSES = { HUNTER = true, WARLOCK = true, DEATHKNIGHT = true }
+
+-- Lone Wolf (Hunter no-pet talent) was removed in patch 11.1.0.
+-- All Hunter specs in 12.x want an active pet.
+
+-- Unholy DK (spec index 3) has a ghoul via Raise Dead — manual cast, can die.
+-- Blood (1) and Frost (2) do not use a pet.
+local UNHOLY_DK_SPEC = 3
 
 local FONT_DEFS_FALLBACK = {
   { key = "Fonts\\ARIALN.TTF",   label = "Arial Narrow" },
@@ -44,11 +53,11 @@ for _, fd in ipairs(FONT_DEFS_FALLBACK) do
   table.insert(PetReminderModule.FONT_SORTING, fd.key)
 end
 
-local container    = nil
-local label        = nil
-local tickerHandle = nil
-local isPetClass   = false
-local db           = nil
+local container       = nil
+local label           = nil
+local tickerHandle    = nil
+local isEligibleClass = false   -- true if class can ever need the warning
+local db              = nil
 
 -- ===============================
 -- Helpers
@@ -56,6 +65,22 @@ local db           = nil
 
 local function HasPet()
   return UnitExists("pet") and not UnitIsDeadOrGhost("pet")
+end
+
+-- Returns true if the warning should be active for the current class/spec.
+-- Re-evaluated at runtime so spec swaps are handled without a reload.
+local function ShouldWarn()
+  if not db or not db.enabled then return false end
+  local _, classFile = UnitClass("player")
+  if classFile == "HUNTER" or classFile == "WARLOCK" then
+    return true
+  end
+  if classFile == "DEATHKNIGHT" then
+    -- Only Unholy spec uses a ghoul; Blood and Frost do not.
+    local specIndex = GetSpecialization and GetSpecialization()
+    return specIndex == UNHOLY_DK_SPEC
+  end
+  return false
 end
 
 local function GetFont()
@@ -95,7 +120,7 @@ end
 -- ===============================
 
 local function RefreshDisplay()
-  if not db or not db.enabled or not isPetClass then
+  if not ShouldWarn() then
     if container then container:Hide() end
     StopFlash()
     return
@@ -164,10 +189,6 @@ function PetReminderModule.SetLocked(v)
   db.locked = v
 end
 
-function PetReminderModule.IsPetClass()
-  return isPetClass
-end
-
 -- ===============================
 -- Module Interface
 -- ===============================
@@ -178,7 +199,7 @@ function PetReminderModule.Initialize()
   db = TokukoPDB.PetReminder
 
   local _, classFile = UnitClass("player")
-  isPetClass = PET_CLASSES[classFile] == true
+  isEligibleClass = ELIGIBLE_CLASSES[classFile] == true
 
   -- Populate FONT_VALUES from LSM if available
   local LSM = LibStub and LibStub("LibSharedMedia-3.0", true)
@@ -195,7 +216,7 @@ function PetReminderModule.Initialize()
     end
   end
 
-  if not isPetClass then return end
+  if not isEligibleClass then return end
 
   BuildContainer()
   PetReminderModule.RefreshLabel()
@@ -203,15 +224,20 @@ function PetReminderModule.Initialize()
 end
 
 function PetReminderModule.RegisterEvents(frame)
-  if not isPetClass then return end
-  frame:RegisterEvent("UNIT_PET")             -- pet summoned or dismissed
+  if not isEligibleClass then return end
+  frame:RegisterEvent("UNIT_PET")                    -- pet summoned or dismissed
   frame:RegisterEvent("PLAYER_ENTERING_WORLD")
-  frame:RegisterEvent("PLAYER_REGEN_ENABLED") -- after combat: pet may have died
+  frame:RegisterEvent("PLAYER_REGEN_ENABLED")        -- after combat: pet may have died
+  frame:RegisterEvent("PLAYER_SPECIALIZATION_CHANGED") -- DK spec swap (Unholy <-> other)
 end
 
 function PetReminderModule.OnEvent(event, ...)
   if not db then return end
   if event == "UNIT_PET" then
+    local unitID = ...
+    if unitID ~= "player" then return end
+    RefreshDisplay()
+  elseif event == "PLAYER_SPECIALIZATION_CHANGED" then
     local unitID = ...
     if unitID ~= "player" then return end
     RefreshDisplay()
