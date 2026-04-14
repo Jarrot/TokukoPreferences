@@ -320,7 +320,7 @@ local function InsertElvUIOptions()
       petReminderEnabled = {
         order = 61, type = "toggle",
         name  = "|cff00ff00Enable|r",
-        desc  = "Show a flashing on-screen warning when you have no active pet.\nHunter: all specs (Lone Wolf removed in 11.1).\nWarlock: all specs.\nDeath Knight: Unholy only (ghoul). Hides automatically when you swap to Blood or Frost.",
+        desc  = "Show a flashing on-screen warning when you have no active pet.\nHunter: all specs (Lone Wolf removed in 11.1).\nWarlock: all specs.\nDeath Knight: Unholy only (ghoul via Raise Dead). Auto-hides when swapping to Blood or Frost.",
         get   = function() return db.PetReminder.enabled end,
         set   = function(_, v)
           db.PetReminder.enabled = v
@@ -330,15 +330,36 @@ local function InsertElvUIOptions()
       petReminderMessage = {
         order = 62, type = "input", width = "full",
         name  = "Warning Message",
-        desc  = "Text shown on screen when your pet is missing or dead.",
+        desc  = "Text displayed when your pet is missing or dead (out of combat).",
         get   = function() return db.PetReminder.message end,
         set   = function(_, v)
           db.PetReminder.message = v
           TokukoP.modules.PetReminder.RefreshLabel()
         end,
       },
+      petReminderCombatMessageEnabled = {
+        order = 63, type = "toggle",
+        name  = "Different Text In Combat",
+        desc  = "Show a separate message while in combat (e.g. more urgent).",
+        get   = function() return db.PetReminder.combatMessageEnabled end,
+        set   = function(_, v)
+          db.PetReminder.combatMessageEnabled = v
+          TokukoP.modules.PetReminder.RefreshLabel()
+        end,
+      },
+      petReminderCombatMessage = {
+        order = 64, type = "input", width = "full",
+        name  = "Combat Message",
+        desc  = "Text shown while in combat. Leave blank to use the same message as out of combat.",
+        disabled = function() return not db.PetReminder.combatMessageEnabled end,
+        get   = function() return db.PetReminder.combatMessage end,
+        set   = function(_, v)
+          db.PetReminder.combatMessage = v
+          TokukoP.modules.PetReminder.RefreshLabel()
+        end,
+      },
       petReminderFont = {
-        order = 63, type = "select",
+        order = 65, type = "select",
         name  = "Font",
         values  = TokukoP.modules.PetReminder.FONT_VALUES,
         sorting = TokukoP.modules.PetReminder.FONT_SORTING,
@@ -349,7 +370,7 @@ local function InsertElvUIOptions()
         end,
       },
       petReminderFontSize = {
-        order = 64, type = "range",
+        order = 66, type = "range",
         name  = "Font Size",
         min = 12, max = 64, step = 1,
         get  = function() return db.PetReminder.fontSize end,
@@ -358,17 +379,27 @@ local function InsertElvUIOptions()
           TokukoP.modules.PetReminder.RefreshLabel()
         end,
       },
+      petReminderEffect = {
+        order = 67, type = "select",
+        name  = "Effect",
+        desc  = "Pulse: alpha fade in/out.\nShake: rapid position jitter.\nBounce: smooth up/down float.\nScale Pulse: text grows and shrinks.\nColor Flash: alternates between your colour and bright yellow.",
+        values  = TokukoP.modules.PetReminder.EFFECT_VALUES,
+        sorting = TokukoP.modules.PetReminder.EFFECT_SORTING,
+        get  = function() return db.PetReminder.effect end,
+        set  = function(_, v) db.PetReminder.effect = v end,
+      },
       petReminderFlashRate = {
-        order = 65, type = "range",
-        name  = "Flash Speed",
-        desc  = "How fast the warning pulses. Higher = faster.",
+        order = 68, type = "range",
+        name  = "Effect Speed",
+        desc  = "Speed of the selected effect. Higher = faster.",
         min = 0.5, max = 5.0, step = 0.5,
         get  = function() return db.PetReminder.flashRate end,
         set  = function(_, v) db.PetReminder.flashRate = v end,
       },
       petReminderColor = {
-        order = 66, type = "color",
+        order = 69, type = "color",
         name  = "Color",
+        desc  = "Text color. Also used as the primary color for Color Flash.",
         hasAlpha = false,
         get  = function()
           local c = db.PetReminder.color
@@ -379,8 +410,27 @@ local function InsertElvUIOptions()
           TokukoP.modules.PetReminder.RefreshLabel()
         end,
       },
+      petReminderSoundEnabled = {
+        order = 70, type = "toggle",
+        name  = "Play Sound on Pet Death",
+        desc  = "Plays a sound when your pet dies in combat.",
+        get   = function() return db.PetReminder.soundEnabled end,
+        set   = function(_, v) db.PetReminder.soundEnabled = v end,
+      },
+      petReminderSound = {
+        order = 71, type = "select",
+        name  = "Sound",
+        values  = TokukoP.modules.PetReminder.SOUND_VALUES,
+        sorting = TokukoP.modules.PetReminder.SOUND_SORTING,
+        disabled = function() return not db.PetReminder.soundEnabled end,
+        get  = function() return db.PetReminder.sound end,
+        set  = function(_, v)
+          db.PetReminder.sound = v
+          TokukoP.modules.PetReminder.PreviewSound()
+        end,
+      },
       petReminderLocked = {
-        order = 67, type = "toggle",
+        order = 72, type = "toggle",
         name  = "Lock Position",
         desc  = "Prevent the warning frame from being dragged.",
         get   = function() return db.PetReminder.locked end,

@@ -1,6 +1,6 @@
 -- PetReminderModule.lua
--- Shows a pulsing on-screen warning when a Hunter or Warlock has no active pet.
--- Auto-detects pet class on login; no-op for all other classes.
+-- Shows a flashing on-screen warning when a Hunter, Warlock, or Unholy DK
+-- has no active pet. Supports multiple visual effects and an optional combat sound.
 
 local ADDON_NAME = ...
 local TokukoP = TokukoP
@@ -12,14 +12,14 @@ TokukoP.modules.PetReminder = PetReminderModule
 -- Constants
 -- ===============================
 
--- Classes that can ever need the warning (gate for event registration).
--- Spec-specific logic is handled in ShouldWarn() at runtime.
+-- Classes that can ever trigger the warning (gate for event registration).
+-- Spec-specific filtering is done in ShouldWarn() at runtime.
 local ELIGIBLE_CLASSES = { HUNTER = true, WARLOCK = true, DEATHKNIGHT = true }
 
 -- Lone Wolf (Hunter no-pet talent) was removed in patch 11.1.0.
 -- All Hunter specs in 12.x want an active pet.
 
--- Unholy DK (spec index 3) has a ghoul via Raise Dead — manual cast, can die.
+-- Unholy DK (spec 3) has a ghoul via Raise Dead — manual cast, can die.
 -- Blood (1) and Frost (2) do not use a pet.
 local UNHOLY_DK_SPEC = 3
 
@@ -31,19 +31,25 @@ local FONT_DEFS_FALLBACK = {
 }
 
 local DEFAULTS = {
-  enabled   = false,
-  locked    = false,
-  message   = "PET IS MISSING",
-  font      = "Fonts\\FRIZQT__.TTF",
-  fontSize  = 32,
-  flashRate = 2.0,   -- pulses per second
-  color     = { r = 1, g = 0.15, b = 0.15 },
-  x         = 0,
-  y         = 120,
+  enabled              = false,
+  locked               = false,
+  message              = "PET IS MISSING",
+  combatMessageEnabled = false,
+  combatMessage        = "SUMMON YOUR PET",
+  font                 = "Fonts\\FRIZQT__.TTF",
+  fontSize             = 32,
+  effect               = "pulse",  -- pulse | shake | bounce | scale | colorflash
+  flashRate            = 2.0,      -- pulses/bounces per second
+  color                = { r = 1, g = 0.15, b = 0.15 },
+  soundEnabled         = false,
+  sound                = "raid_warning",
+  x                    = 0,
+  y                    = 120,
 }
 
 -- ===============================
--- State
+-- Module-level tables for Settings dropdowns
+-- (defined here so Settings.lua can read them at load time)
 -- ===============================
 
 PetReminderModule.FONT_VALUES  = {}
@@ -53,11 +59,51 @@ for _, fd in ipairs(FONT_DEFS_FALLBACK) do
   table.insert(PetReminderModule.FONT_SORTING, fd.key)
 end
 
+PetReminderModule.EFFECT_VALUES  = {
+  pulse      = "Pulse (alpha)",
+  shake      = "Shake",
+  bounce     = "Bounce",
+  scale      = "Scale Pulse",
+  colorflash = "Color Flash",
+}
+PetReminderModule.EFFECT_SORTING = { "pulse", "shake", "bounce", "scale", "colorflash" }
+
+PetReminderModule.SOUND_VALUES  = {
+  raid_warning = "Raid Warning",
+  alarm        = "Alarm Clock",
+  ui_error     = "UI Error",
+  pvp_alert    = "PvP Alert",
+}
+PetReminderModule.SOUND_SORTING = { "raid_warning", "alarm", "ui_error", "pvp_alert" }
+
+-- ===============================
+-- State
+-- ===============================
+
 local container       = nil
 local label           = nil
 local tickerHandle    = nil
-local isEligibleClass = false   -- true if class can ever need the warning
+local isEligibleClass = false
+local isDragging      = false
 local db              = nil
+
+-- ===============================
+-- Sound
+-- ===============================
+
+local function PlayWarningSound()
+  if not db or not db.soundEnabled then return end
+  local s = db.sound or "raid_warning"
+  if s == "raid_warning" then
+    pcall(PlaySound, SOUNDKIT.RAID_WARNING,                 "Master")
+  elseif s == "alarm" then
+    pcall(PlaySound, SOUNDKIT.ALARM_CLOCK_WARNING_3,        "Master")
+  elseif s == "ui_error" then
+    pcall(PlaySound, SOUNDKIT.UI_ERROR_MESSAGE,             "Master")
+  elseif s == "pvp_alert" then
+    pcall(PlaySound, SOUNDKIT.PVP_THROUGH_QUEUE_BUTTON_FLASH, "Master")
+  end
+end
 
 -- ===============================
 -- Helpers
@@ -67,16 +113,11 @@ local function HasPet()
   return UnitExists("pet") and not UnitIsDeadOrGhost("pet")
 end
 
--- Returns true if the warning should be active for the current class/spec.
--- Re-evaluated at runtime so spec swaps are handled without a reload.
 local function ShouldWarn()
   if not db or not db.enabled then return false end
   local _, classFile = UnitClass("player")
-  if classFile == "HUNTER" or classFile == "WARLOCK" then
-    return true
-  end
+  if classFile == "HUNTER" or classFile == "WARLOCK" then return true end
   if classFile == "DEATHKNIGHT" then
-    -- Only Unholy spec uses a ghoul; Blood and Frost do not.
     local specIndex = GetSpecialization and GetSpecialization()
     return specIndex == UNHOLY_DK_SPEC
   end
@@ -90,11 +131,35 @@ local function GetFont()
   return db.font or "Fonts\\FRIZQT__.TTF"
 end
 
+local function GetCurrentMessage()
+  if db.combatMessageEnabled and db.combatMessage ~= "" and InCombatLockdown() then
+    return db.combatMessage
+  end
+  return db.message
+end
+
 -- ===============================
--- Flash Ticker
+-- Effects
 -- ===============================
 
-local function StartFlash()
+local function ResetEffects()
+  if not container then return end
+  container:SetAlpha(1)
+  container:SetScale(1)
+  if label then label:SetTextColor(db.color.r, db.color.g, db.color.b, 1) end
+  container:ClearAllPoints()
+  container:SetPoint("CENTER", UIParent, "CENTER", db.x, db.y)
+end
+
+local function StopEffect()
+  if tickerHandle then
+    tickerHandle:Cancel()
+    tickerHandle = nil
+  end
+  ResetEffects()
+end
+
+local function StartEffect()
   if tickerHandle then return end
   tickerHandle = C_Timer.NewTicker(0.05, function()
     if not container or not container:IsShown() then
@@ -102,35 +167,73 @@ local function StartFlash()
       tickerHandle = nil
       return
     end
-    -- Smooth sine pulse: alpha oscillates between 0.3 and 1.0
-    local alpha = 0.3 + 0.7 * math.abs(math.sin(GetTime() * db.flashRate * math.pi))
-    container:SetAlpha(alpha)
-  end)
-end
 
-local function StopFlash()
-  if tickerHandle then
-    tickerHandle:Cancel()
-    tickerHandle = nil
-  end
+    local t      = GetTime()
+    local rate   = db.flashRate or 2.0
+    local effect = db.effect or "pulse"
+
+    if effect == "pulse" then
+      -- Smooth alpha sine wave between 0.3 and 1.0
+      container:SetAlpha(0.3 + 0.7 * math.abs(math.sin(t * rate * math.pi)))
+
+    elseif effect == "shake" then
+      -- Random position jitter — grabs attention for urgent warnings
+      container:SetAlpha(1)
+      if not isDragging then
+        local ox = (math.random() - 0.5) * 10
+        local oy = (math.random() - 0.5) * 10
+        container:ClearAllPoints()
+        container:SetPoint("CENTER", UIParent, "CENTER", db.x + ox, db.y + oy)
+      end
+
+    elseif effect == "bounce" then
+      -- Smooth vertical sine bounce
+      container:SetAlpha(1)
+      if not isDragging then
+        local oy = 12 * math.sin(t * rate * math.pi)
+        container:ClearAllPoints()
+        container:SetPoint("CENTER", UIParent, "CENTER", db.x, db.y + oy)
+      end
+
+    elseif effect == "scale" then
+      -- Text grows and shrinks rhythmically
+      container:SetAlpha(1)
+      container:SetScale(0.8 + 0.4 * math.abs(math.sin(t * rate * math.pi)))
+
+    elseif effect == "colorflash" then
+      -- Alternates between configured colour and white on each half-period
+      container:SetAlpha(1)
+      local phase = math.floor(t * rate * 2) % 2
+      if phase == 0 then
+        label:SetTextColor(db.color.r, db.color.g, db.color.b, 1)
+      else
+        label:SetTextColor(1, 1, 0.2, 1)  -- bright yellow flash
+      end
+    end
+  end)
 end
 
 -- ===============================
 -- Display
 -- ===============================
 
+local function UpdateLabelText()
+  if label then label:SetText(GetCurrentMessage()) end
+end
+
 local function RefreshDisplay()
   if not ShouldWarn() then
     if container then container:Hide() end
-    StopFlash()
+    StopEffect()
     return
   end
+  UpdateLabelText()
   if HasPet() then
     container:Hide()
-    StopFlash()
+    StopEffect()
   else
     container:Show()
-    StartFlash()
+    StartEffect()
   end
 end
 
@@ -150,9 +253,13 @@ local function BuildContainer()
   f:EnableMouse(true)
   f:RegisterForDrag("LeftButton")
   f:SetScript("OnDragStart", function(self)
-    if not db.locked then self:StartMoving() end
+    if not db.locked then
+      isDragging = true
+      self:StartMoving()
+    end
   end)
   f:SetScript("OnDragStop", function(self)
+    isDragging = false
     self:StopMovingOrSizing()
     local ux, uy = UIParent:GetCenter()
     db.x = self:GetLeft() - ux + self:GetWidth()  / 2
@@ -177,7 +284,7 @@ end
 function PetReminderModule.RefreshLabel()
   if not label or not db then return end
   label:SetFont(GetFont(), db.fontSize, "OUTLINE")
-  label:SetText(db.message)
+  label:SetText(GetCurrentMessage())
   label:SetTextColor(db.color.r, db.color.g, db.color.b, 1)
 end
 
@@ -187,6 +294,10 @@ end
 
 function PetReminderModule.SetLocked(v)
   db.locked = v
+end
+
+function PetReminderModule.PreviewSound()
+  PlayWarningSound()
 end
 
 -- ===============================
@@ -201,7 +312,7 @@ function PetReminderModule.Initialize()
   local _, classFile = UnitClass("player")
   isEligibleClass = ELIGIBLE_CLASSES[classFile] == true
 
-  -- Populate FONT_VALUES from LSM if available
+  -- Rebuild font list from LSM if available
   local LSM = LibStub and LibStub("LibSharedMedia-3.0", true)
   if LSM then
     local fonts = LSM:HashTable("font")
@@ -225,23 +336,39 @@ end
 
 function PetReminderModule.RegisterEvents(frame)
   if not isEligibleClass then return end
+  frame:RegisterUnitEvent("UNIT_DIED", "pet")        -- pet death → play sound
   frame:RegisterEvent("UNIT_PET")                    -- pet summoned or dismissed
   frame:RegisterEvent("PLAYER_ENTERING_WORLD")
-  frame:RegisterEvent("PLAYER_REGEN_ENABLED")        -- after combat: pet may have died
-  frame:RegisterEvent("PLAYER_SPECIALIZATION_CHANGED") -- DK spec swap (Unholy <-> other)
+  frame:RegisterEvent("PLAYER_REGEN_DISABLED")       -- swap to combat message text
+  frame:RegisterEvent("PLAYER_REGEN_ENABLED")        -- pet may have died; swap text back
+  frame:RegisterEvent("PLAYER_SPECIALIZATION_CHANGED")
 end
 
 function PetReminderModule.OnEvent(event, ...)
   if not db then return end
-  if event == "UNIT_PET" then
+
+  if event == "UNIT_DIED" then
+    -- Fired only for "pet" via RegisterUnitEvent — our pet just died
+    if db.soundEnabled then PlayWarningSound() end
+    RefreshDisplay()  -- show the warning immediately
+
+  elseif event == "UNIT_PET" then
     local unitID = ...
     if unitID ~= "player" then return end
     RefreshDisplay()
+
   elseif event == "PLAYER_SPECIALIZATION_CHANGED" then
     local unitID = ...
     if unitID ~= "player" then return end
     RefreshDisplay()
-  elseif event == "PLAYER_ENTERING_WORLD" or event == "PLAYER_REGEN_ENABLED" then
+
+  elseif event == "PLAYER_REGEN_DISABLED" or event == "PLAYER_REGEN_ENABLED" then
+    -- Update combat/normal message text if warning is currently shown,
+    -- then re-evaluate (post-combat: pet may have died)
+    UpdateLabelText()
+    RefreshDisplay()
+
+  elseif event == "PLAYER_ENTERING_WORLD" then
     RefreshDisplay()
   end
 end
