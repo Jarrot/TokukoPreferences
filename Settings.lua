@@ -313,6 +313,80 @@ local function InsertElvUIOptions()
         end,
       },
 
+      -- ── Pet Reminder ──────────────────────────────────────
+      petReminderHeader = {
+        order = 60, type = "header", name = "Pet Reminder (Hunter / Warlock)",
+      },
+      petReminderEnabled = {
+        order = 61, type = "toggle",
+        name  = "|cff00ff00Enable|r",
+        desc  = "Show a flashing on-screen warning when you have no active pet.\nAuto-detects Hunter and Warlock. No-op on other classes.",
+        get   = function() return db.PetReminder.enabled end,
+        set   = function(_, v)
+          db.PetReminder.enabled = v
+          TokukoP.modules.PetReminder.RefreshDisplay()
+        end,
+      },
+      petReminderMessage = {
+        order = 62, type = "input", width = "full",
+        name  = "Warning Message",
+        desc  = "Text shown on screen when your pet is missing or dead.",
+        get   = function() return db.PetReminder.message end,
+        set   = function(_, v)
+          db.PetReminder.message = v
+          TokukoP.modules.PetReminder.RefreshLabel()
+        end,
+      },
+      petReminderFont = {
+        order = 63, type = "select",
+        name  = "Font",
+        values  = TokukoP.modules.PetReminder.FONT_VALUES,
+        sorting = TokukoP.modules.PetReminder.FONT_SORTING,
+        get  = function() return db.PetReminder.font end,
+        set  = function(_, v)
+          db.PetReminder.font = v
+          TokukoP.modules.PetReminder.RefreshLabel()
+        end,
+      },
+      petReminderFontSize = {
+        order = 64, type = "range",
+        name  = "Font Size",
+        min = 12, max = 64, step = 1,
+        get  = function() return db.PetReminder.fontSize end,
+        set  = function(_, v)
+          db.PetReminder.fontSize = v
+          TokukoP.modules.PetReminder.RefreshLabel()
+        end,
+      },
+      petReminderFlashRate = {
+        order = 65, type = "range",
+        name  = "Flash Speed",
+        desc  = "How fast the warning pulses. Higher = faster.",
+        min = 0.5, max = 5.0, step = 0.5,
+        get  = function() return db.PetReminder.flashRate end,
+        set  = function(_, v) db.PetReminder.flashRate = v end,
+      },
+      petReminderColor = {
+        order = 66, type = "color",
+        name  = "Color",
+        hasAlpha = false,
+        get  = function()
+          local c = db.PetReminder.color
+          return c.r, c.g, c.b
+        end,
+        set  = function(_, r, g, b)
+          db.PetReminder.color = { r = r, g = g, b = b }
+          TokukoP.modules.PetReminder.RefreshLabel()
+        end,
+      },
+      petReminderLocked = {
+        order = 67, type = "toggle",
+        name  = "Lock Position",
+        desc  = "Prevent the warning frame from being dragged.",
+        get   = function() return db.PetReminder.locked end,
+        set   = function(_, v) TokukoP.modules.PetReminder.SetLocked(v) end,
+      },
+
       -- ── Tooltip ───────────────────────────────────────────
       tooltipHeader = {
         order = 50, type = "header", name = "Tooltip",
