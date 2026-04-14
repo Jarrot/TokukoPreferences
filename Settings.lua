@@ -249,6 +249,70 @@ local function InsertElvUIOptions()
         end,
       },
 
+      -- ── Combat Res ────────────────────────────────────────
+      combatResHeader = {
+        order = 42, type = "header", name = "Combat Res & Reincarnation",
+      },
+      combatResEnabled = {
+        order = 43, type = "toggle",
+        name = "|cff00ff00Enable|r",
+        desc = "Show two icons: Druid Rebirth (battle res charges + regen timer) and Shaman Reincarnation (personal cooldown).\nDrag the frame to reposition.",
+        get  = function() return db.CombatRes.enabled end,
+        set  = function(_, v)
+          db.CombatRes.enabled = v
+          TokukoP.modules.CombatRes.RefreshDisplay()
+        end,
+      },
+      combatResLocked = {
+        order = 44, type = "toggle",
+        name = "Lock Position",
+        get  = function() return db.CombatRes.locked end,
+        set  = function(_, v) TokukoP.modules.CombatRes.SetLocked(v) end,
+      },
+      combatResFont = {
+        order = 45, type = "select",
+        name  = "Font",
+        values  = TokukoP.modules.CombatRes.FONT_VALUES,
+        sorting = TokukoP.modules.CombatRes.FONT_SORTING,
+        get  = function() return db.CombatRes.font end,
+        set  = function(_, v)
+          db.CombatRes.font = v
+          TokukoP.modules.CombatRes.RefreshFonts()
+        end,
+      },
+      combatResTimerFontSize = {
+        order = 46, type = "range",
+        name  = "Timer Font Size",
+        desc  = "Size of the MM:SS cooldown timers shown centered on each icon.",
+        min = 8, max = 24, step = 1,
+        get  = function() return db.CombatRes.timerFontSize end,
+        set  = function(_, v)
+          db.CombatRes.timerFontSize = v
+          TokukoP.modules.CombatRes.RefreshFonts()
+        end,
+      },
+      combatResCountFontSize = {
+        order = 47, type = "range",
+        name  = "Charge Badge Font Size",
+        desc  = "Size of the battle res charge count badge (bottom-right of Rebirth icon).",
+        min = 8, max = 24, step = 1,
+        get  = function() return db.CombatRes.countFontSize end,
+        set  = function(_, v)
+          db.CombatRes.countFontSize = v
+          TokukoP.modules.CombatRes.RefreshFonts()
+        end,
+      },
+      combatResElvuiIcons = {
+        order = 48, type = "toggle",
+        name  = "ElvUI Icon Style",
+        desc  = "Apply ElvUI's icon crop and backdrop border to the Rebirth/Reincarnation icons.\nGives a cleaner look matching the rest of ElvUI's UI.",
+        get   = function() return db.CombatRes.elvuiIcons end,
+        set   = function(_, v)
+          db.CombatRes.elvuiIcons = v
+          TokukoP.modules.CombatRes.RebuildAndRefresh()
+        end,
+      },
+
       -- ── Tooltip ───────────────────────────────────────────
       tooltipHeader = {
         order = 50, type = "header", name = "Tooltip",

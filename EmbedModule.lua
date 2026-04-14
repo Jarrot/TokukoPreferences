@@ -492,26 +492,60 @@ function EmbedModule.Initialize()
   panelFrame = GetElvUIRightPanel()
 end
 
+-- Re-hide chrome and reposition after Details restores its own state.
+-- delay: seconds to wait before acting (loading screen needs more time than in-place res).
+local function RehideEmbedded(delay)
+  C_Timer.After(delay, function()
+    if not embedded then return end
+    local function rehideFrame(frame)
+      if not frame then return end
+      TryHideChrome(frame)
+      pcall(function()
+        local inst = frame._instance or frame.instance
+        if inst then
+          if inst.rowframe then inst.rowframe:SetFrameStrata("MEDIUM") end
+          inst:LockInstance(true)
+        end
+      end)
+    end
+    rehideFrame(meterFrame1)
+    rehideFrame(meterFrame2)
+    PositionFrames()
+    StartRepositionTimer()
+  end)
+end
+
 function EmbedModule.RegisterEvents(frame)
   frame:RegisterEvent("PLAYER_REGEN_DISABLED")
   frame:RegisterEvent("PLAYER_REGEN_ENABLED")
   frame:RegisterEvent("PLAYER_ENTERING_WORLD")
+  frame:RegisterEvent("PLAYER_ALIVE")  -- in-place res (battle res, Soulstone, Ankh)
 end
 
 function EmbedModule.OnEvent(event, ...)
   if event == "PLAYER_ENTERING_WORLD" then
     if not panelFrame then panelFrame = GetElvUIRightPanel() end
-    -- Hook toggle button as early as possible
     C_Timer.After(1, function() HookToggleButton() end)
     local db = TokukoPDB.Embed
-    if db and db.enabled and not db.combatOnly and not embedded then
-      -- 6s defer: ElvUI ~1s, Details ~3-4s to fully restore windows
-      C_Timer.After(6, function()
-        if db.enabled and not embedded and not InCombatLockdown() then
-          DoEmbed()
-        end
-      end)
+    if db and db.enabled then
+      if embedded then
+        -- Loading screen: wait for Details to finish its own post-load restore.
+        RehideEmbedded(4)
+      elseif not db.combatOnly then
+        -- Initial login / UI reload: ElvUI ~1s, Details ~3-4s to fully restore.
+        C_Timer.After(6, function()
+          if db.enabled and not embedded and not InCombatLockdown() then
+            DoEmbed()
+          end
+        end)
+      end
     end
+
+  elseif event == "PLAYER_ALIVE" then
+    -- In-place resurrection (battle res, Soulstone, Ankh) — no loading screen,
+    -- but Details may restore its chrome. Shorter delay than loading screen path.
+    if embedded then RehideEmbedded(1.5) end
+
   elseif event == "PLAYER_REGEN_DISABLED" then
     HandleCombatState(true)
   elseif event == "PLAYER_REGEN_ENABLED" then
