@@ -639,20 +639,8 @@ function TokukoP.OpenSettings()
       print("|cffffcc00TokukoP:|r ElvUI options not loaded yet. Try again in a moment.")
       return
     end
-    TokukoP.EnterSettingsPreview()
     E:ToggleOptions()
-    -- Hook AceConfigDialog frame(s) to exit preview when /ec is closed
-    C_Timer.After(0.05, function()
-      local ACD = LibStub and LibStub("AceConfigDialog-3.0", true)
-      if ACD and ACD.OpenFrames then
-        for _, frameObj in pairs(ACD.OpenFrames) do
-          if frameObj.frame and not frameObj.frame._tpPreviewHooked then
-            frameObj.frame._tpPreviewHooked = true
-            frameObj.frame:HookScript("OnHide", TokukoP.ExitSettingsPreview)
-          end
-        end
-      end
-    end)
+    -- Preview is managed by the hooksecurefunc in CreateSettingsPanel
     return
   end
   -- Fallback: standalone window
@@ -661,6 +649,31 @@ function TokukoP.OpenSettings()
   settingsFrame = BuildFallbackWindow()
   settingsFrame:HookScript("OnHide", TokukoP.ExitSettingsPreview)
   settingsFrame:Show()
+end
+
+local function HookACDFrame()
+  local ACD = LibStub and LibStub("AceConfigDialog-3.0", true)
+  if not (ACD and ACD.OpenFrames) then return end
+  -- Try "ElvUI" key first, then any visible open frame
+  local frameObj = ACD.OpenFrames["ElvUI"]
+  if not frameObj then
+    for _, obj in pairs(ACD.OpenFrames) do
+      if obj.frame and obj.frame:IsShown() then frameObj = obj; break end
+    end
+  end
+  if not (frameObj and frameObj.frame) then return end
+  local f = frameObj.frame
+  if not f._tpPreviewHooked then
+    f._tpPreviewHooked = true
+    f:HookScript("OnShow", TokukoP.EnterSettingsPreview)
+    f:HookScript("OnHide", TokukoP.ExitSettingsPreview)
+  end
+  -- Frame is already visible — enter preview now (OnShow already fired)
+  if f:IsShown() then
+    TokukoP.EnterSettingsPreview()
+  else
+    TokukoP.ExitSettingsPreview()
+  end
 end
 
 function TokukoP.CreateSettingsPanel()
@@ -674,6 +687,12 @@ function TokukoP.CreateSettingsPanel()
     -- Fallback: insert directly if ElvUI_Options is already loaded
     C_Timer.After(1, function()
       if E.Options then InsertElvUIOptions() end
+    end)
+  end
+  -- Hook E:ToggleOptions so preview activates regardless of how /ec is opened
+  if E.ToggleOptions then
+    hooksecurefunc(E, "ToggleOptions", function()
+      C_Timer.After(0.05, HookACDFrame)
     end)
   end
 end
