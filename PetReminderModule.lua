@@ -86,6 +86,7 @@ local tickerHandle    = nil
 local isEligibleClass = false
 local isDragging      = false
 local db              = nil
+local previewMode     = false
 
 -- ===============================
 -- Sound
@@ -222,13 +223,13 @@ local function UpdateLabelText()
 end
 
 local function RefreshDisplay()
-  if not ShouldWarn() then
+  if not previewMode and not ShouldWarn() then
     if container then container:Hide() end
     StopEffect()
     return
   end
   UpdateLabelText()
-  if HasPet() then
+  if not previewMode and HasPet() then
     container:Hide()
     StopEffect()
   else
@@ -298,6 +299,20 @@ end
 
 function PetReminderModule.PreviewSound()
   PlayWarningSound()
+end
+
+function PetReminderModule.EnterPreview()
+  previewMode = true
+  if not container then
+    BuildContainer()
+    PetReminderModule.RefreshLabel()
+  end
+  RefreshDisplay()
+end
+
+function PetReminderModule.ExitPreview()
+  previewMode = false
+  RefreshDisplay()
 end
 
 -- ===============================

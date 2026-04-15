@@ -55,6 +55,7 @@ local reincarIcon  = nil   -- nil on non-Shaman
 local isShaman     = false -- set in Initialize
 local db           = nil
 local tickerHandle = nil
+local previewMode  = false
 
 -- Debug counters (read by DebugModule via CombatResModule.GetEventStats)
 local eventStats = {
@@ -186,7 +187,7 @@ end
 local function StartTicker()
   if tickerHandle then return end
   tickerHandle = C_Timer.NewTicker(0.2, function()
-    if not db.enabled or not container or not container:IsShown() then
+    if (not db.enabled and not previewMode) or not container or not container:IsShown() then
       tickerHandle:Cancel()
       tickerHandle = nil
       return
@@ -325,6 +326,20 @@ function CombatResModule.SetLocked(v)
   db.locked = v
 end
 
+
+function CombatResModule.EnterPreview()
+  previewMode = true
+  if not container then BuildContainer() end
+  container:Show()
+  SyncSweeps()
+  UpdateDisplay()
+  StartTicker()
+end
+
+function CombatResModule.ExitPreview()
+  previewMode = false
+  CombatResModule.RefreshDisplay()
+end
 
 function CombatResModule.RebuildAndRefresh()
   StopTicker()

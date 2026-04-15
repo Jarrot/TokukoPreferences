@@ -146,14 +146,6 @@ local function InsertElvUIOptions()
           TokukoP.modules.HealerMana.RefreshDisplay()
         end,
       },
-      healerManaPreview = {
-        order = 32, type = "execute",
-        name = function()
-          return TokukoP.modules.HealerMana.IsPreview() and "Hide Preview" or "Preview (5 fake healers)"
-        end,
-        desc = "Show 5 fake healers so you can see font/color changes and drag the frame to reposition it.",
-        func = function() TokukoP.modules.HealerMana.TogglePreview() end,
-      },
       healerManaDisplayMode = {
         order = 33, type = "select",
         name  = "Display",
@@ -615,29 +607,59 @@ local function BuildFallbackWindow()
 end
 
 -- ===============================
+-- Settings Preview
+-- ===============================
+
+local settingsPreviewActive = false
+
+function TokukoP.EnterSettingsPreview()
+  if settingsPreviewActive then return end
+  settingsPreviewActive = true
+  for _, mod in pairs(TokukoP.modules) do
+    if mod.EnterPreview then mod.EnterPreview() end
+  end
+end
+
+function TokukoP.ExitSettingsPreview()
+  if not settingsPreviewActive then return end
+  settingsPreviewActive = false
+  for _, mod in pairs(TokukoP.modules) do
+    if mod.ExitPreview then mod.ExitPreview() end
+  end
+end
+
+-- ===============================
 -- Public API
 -- ===============================
 
 function TokukoP.OpenSettings()
   local E = GetE()
   if E then
-    -- Open ElvUI config panel directly on our section
     if not E.Options then
       print("|cffffcc00TokukoP:|r ElvUI options not loaded yet. Try again in a moment.")
       return
     end
-    -- Use LibElvUIPlugin or open /ec directly
-    local EP = LibStub and LibStub("LibElvUIPlugin-1.0", true)
-    if EP then
-      E:ToggleOptions()
-    else
-      E:ToggleOptions()
-    end
+    TokukoP.EnterSettingsPreview()
+    E:ToggleOptions()
+    -- Hook AceConfigDialog frame(s) to exit preview when /ec is closed
+    C_Timer.After(0.05, function()
+      local ACD = LibStub and LibStub("AceConfigDialog-3.0", true)
+      if ACD and ACD.OpenFrames then
+        for _, frameObj in pairs(ACD.OpenFrames) do
+          if frameObj.frame and not frameObj.frame._tpPreviewHooked then
+            frameObj.frame._tpPreviewHooked = true
+            frameObj.frame:HookScript("OnHide", TokukoP.ExitSettingsPreview)
+          end
+        end
+      end
+    end)
     return
   end
   -- Fallback: standalone window
+  TokukoP.EnterSettingsPreview()
   if settingsFrame then settingsFrame:Hide(); settingsFrame = nil end
   settingsFrame = BuildFallbackWindow()
+  settingsFrame:HookScript("OnHide", TokukoP.ExitSettingsPreview)
   settingsFrame:Show()
 end
 
