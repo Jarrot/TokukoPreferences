@@ -640,7 +640,6 @@ function TokukoP.OpenSettings()
       return
     end
     E:ToggleOptions()
-    -- Preview is managed by the hooksecurefunc in CreateSettingsPanel
     return
   end
   -- Fallback: standalone window
@@ -649,31 +648,6 @@ function TokukoP.OpenSettings()
   settingsFrame = BuildFallbackWindow()
   settingsFrame:HookScript("OnHide", TokukoP.ExitSettingsPreview)
   settingsFrame:Show()
-end
-
-local function HookACDFrame()
-  local ACD = LibStub and LibStub("AceConfigDialog-3.0", true)
-  if not (ACD and ACD.OpenFrames) then return end
-  -- Try "ElvUI" key first, then any visible open frame
-  local frameObj = ACD.OpenFrames["ElvUI"]
-  if not frameObj then
-    for _, obj in pairs(ACD.OpenFrames) do
-      if obj.frame and obj.frame:IsShown() then frameObj = obj; break end
-    end
-  end
-  if not (frameObj and frameObj.frame) then return end
-  local f = frameObj.frame
-  if not f._tpPreviewHooked then
-    f._tpPreviewHooked = true
-    f:HookScript("OnShow", TokukoP.EnterSettingsPreview)
-    f:HookScript("OnHide", TokukoP.ExitSettingsPreview)
-  end
-  -- Frame is already visible — enter preview now (OnShow already fired)
-  if f:IsShown() then
-    TokukoP.EnterSettingsPreview()
-  else
-    TokukoP.ExitSettingsPreview()
-  end
 end
 
 function TokukoP.CreateSettingsPanel()
@@ -689,10 +663,26 @@ function TokukoP.CreateSettingsPanel()
       if E.Options then InsertElvUIOptions() end
     end)
   end
-  -- Hook E:ToggleOptions so preview activates regardless of how /ec is opened
-  if E.ToggleOptions then
-    hooksecurefunc(E, "ToggleOptions", function()
-      C_Timer.After(0.05, HookACDFrame)
+
+  -- Hook AceConfigDialog:Open — LibElvUIPlugin calls this with our group key
+  -- when the TokukoPreferences sidebar button is clicked.
+  local ACD = LibStub and LibStub("AceConfigDialog-3.0", true)
+  if ACD and ACD.Open then
+    hooksecurefunc(ACD, "Open", function(self, appName, container, path, ...)
+      if appName ~= "ElvUI" then return end
+      if path == "TokukoPreferences" then
+        TokukoP.EnterSettingsPreview()
+      else
+        TokukoP.ExitSettingsPreview()
+      end
+      -- Hook the ACD frame's OnHide once so closing /ec also exits preview
+      C_Timer.After(0, function()
+        local frameObj = ACD.OpenFrames and ACD.OpenFrames["ElvUI"]
+        if frameObj and frameObj.frame and not frameObj.frame._tpPreviewHooked then
+          frameObj.frame._tpPreviewHooked = true
+          frameObj.frame:HookScript("OnHide", TokukoP.ExitSettingsPreview)
+        end
+      end)
     end)
   end
 end
