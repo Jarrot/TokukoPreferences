@@ -329,7 +329,15 @@ end
 
 function CombatResModule.EnterPreview()
   previewMode = true
-  if not container then BuildContainer() end
+  -- Non-Shamans: rebuild with both icons so the full UI is visible in preview.
+  if not isShaman then
+    if container then container:Hide(); container = nil; rebirthIcon = nil; reincarIcon = nil end
+    isShaman = true  -- temporarily force two-icon layout
+    BuildContainer()
+    isShaman = false -- restore real class state
+  elseif not container then
+    BuildContainer()
+  end
   container:Show()
   SyncSweeps()
   UpdateDisplay()
@@ -338,6 +346,14 @@ end
 
 function CombatResModule.ExitPreview()
   previewMode = false
+  -- If we built a forced two-icon container for preview, tear it down so the
+  -- real single-icon layout is restored on next RefreshDisplay.
+  if not isShaman and reincarIcon then
+    container:Hide()
+    container   = nil
+    rebirthIcon = nil
+    reincarIcon = nil
+  end
   CombatResModule.RefreshDisplay()
 end
 

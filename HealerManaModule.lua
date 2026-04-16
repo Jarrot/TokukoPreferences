@@ -496,6 +496,7 @@ end
 
 function HealerManaModule.EnterPreview()
   previewMode = true
+  if container then container:Show() end
   UpdateDisplay()
 end
 
