@@ -38,11 +38,10 @@ local DEFAULTS = {
   combatMessage        = "SUMMON YOUR PET",
   font                 = "Fonts\\FRIZQT__.TTF",
   fontSize             = 32,
-  effect               = "pulse",  -- pulse | shake | bounce | scale | colorflash
+  effect               = "none",   -- none | pulse | shake | bounce | scale | colorflash
   flashRate            = 2.0,      -- pulses/bounces per second
   color                = { r = 1, g = 0.15, b = 0.15 },
-  soundEnabled         = false,
-  sound                = "raid_warning",
+  sound                = "none",   -- none | raid_warning | alarm | ui_error | pvp_alert
   x                    = 0,
   y                    = 120,
 }
@@ -60,21 +59,23 @@ for _, fd in ipairs(FONT_DEFS_FALLBACK) do
 end
 
 PetReminderModule.EFFECT_VALUES  = {
+  none       = "None",
   pulse      = "Pulse (alpha)",
   shake      = "Shake",
   bounce     = "Bounce",
   scale      = "Scale Pulse",
   colorflash = "Color Flash",
 }
-PetReminderModule.EFFECT_SORTING = { "pulse", "shake", "bounce", "scale", "colorflash" }
+PetReminderModule.EFFECT_SORTING = { "none", "pulse", "shake", "bounce", "scale", "colorflash" }
 
 PetReminderModule.SOUND_VALUES  = {
+  none         = "None",
   raid_warning = "Raid Warning",
   alarm        = "Alarm Clock",
   ui_error     = "UI Error",
   pvp_alert    = "PvP Alert",
 }
-PetReminderModule.SOUND_SORTING = { "raid_warning", "alarm", "ui_error", "pvp_alert" }
+PetReminderModule.SOUND_SORTING = { "none", "raid_warning", "alarm", "ui_error", "pvp_alert" }
 
 -- ===============================
 -- State
@@ -93,8 +94,9 @@ local previewMode     = false
 -- ===============================
 
 local function PlayWarningSound()
-  if not db or not db.soundEnabled then return end
-  local s = db.sound or "raid_warning"
+  if not db then return end
+  local s = db.sound or "none"
+  if s == "none" then return end
   if s == "raid_warning" then
     pcall(PlaySound, SOUNDKIT.RAID_WARNING,                 "Master")
   elseif s == "alarm" then
@@ -161,6 +163,10 @@ local function StopEffect()
 end
 
 local function StartEffect()
+  if (db.effect or "none") == "none" then
+    ResetEffects()
+    return
+  end
   if tickerHandle then return end
   tickerHandle = C_Timer.NewTicker(0.05, function()
     if not container or not container:IsShown() then
@@ -364,7 +370,7 @@ function PetReminderModule.OnEvent(event, ...)
 
   if event == "UNIT_DIED" then
     -- Fired only for "pet" via RegisterUnitEvent — our pet just died
-    if db.soundEnabled then PlayWarningSound() end
+    PlayWarningSound()
     RefreshDisplay()  -- show the warning immediately
 
   elseif event == "UNIT_PET" then

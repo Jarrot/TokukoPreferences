@@ -133,6 +133,20 @@ end
 local function UpdateDisplay()
   if not container or not container:IsShown() then return end
 
+  -- Preview: show fake data so the icons have visible content while
+  -- adjusting settings (no real charges/CDs exist outside an encounter).
+  if previewMode then
+    rebirthIcon._countLabel:SetText("2")
+    rebirthIcon._countLabel:Show()
+    rebirthIcon._timerLabel:SetText("3:45")
+    rebirthIcon._timerLabel:Show()
+    if reincarIcon then
+      reincarIcon._timerLabel:SetText("1:30")
+      reincarIcon._timerLabel:Show()
+    end
+    return
+  end
+
   -- ── Rebirth ──────────────────────────────────────────────────────
   local cur, max, chargeStart, chargeDur = GetRebirthChargeInfo()
 

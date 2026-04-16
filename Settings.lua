@@ -410,7 +410,7 @@ local function InsertElvUIOptions()
       petReminderEffect = {
         order = 67, type = "select",
         name  = "Effect",
-        desc  = "Pulse: alpha fade in/out.\nShake: rapid position jitter.\nBounce: smooth up/down float.\nScale Pulse: text grows and shrinks.\nColor Flash: alternates between your colour and bright yellow.",
+        desc  = "None: plain static text.\nPulse: alpha fade in/out.\nShake: rapid position jitter.\nBounce: smooth up/down float.\nScale Pulse: text grows and shrinks.\nColor Flash: alternates between your colour and bright yellow.",
         values  = TokukoP.modules.PetReminder.EFFECT_VALUES,
         sorting = TokukoP.modules.PetReminder.EFFECT_SORTING,
         get  = function() return db.PetReminder.effect end,
@@ -438,19 +438,12 @@ local function InsertElvUIOptions()
           TokukoP.modules.PetReminder.RefreshLabel()
         end,
       },
-      petReminderSoundEnabled = {
-        order = 70, type = "toggle",
-        name  = "Play Sound on Pet Death",
-        desc  = "Plays a sound when your pet dies in combat.",
-        get   = function() return db.PetReminder.soundEnabled end,
-        set   = function(_, v) db.PetReminder.soundEnabled = v end,
-      },
       petReminderSound = {
-        order = 71, type = "select",
-        name  = "Sound",
+        order = 70, type = "select",
+        name  = "Sound on Pet Death",
+        desc  = "Sound to play when your pet dies in combat.\nNone: no sound.",
         values  = TokukoP.modules.PetReminder.SOUND_VALUES,
         sorting = TokukoP.modules.PetReminder.SOUND_SORTING,
-        disabled = function() return not db.PetReminder.soundEnabled end,
         get  = function() return db.PetReminder.sound end,
         set  = function(_, v)
           db.PetReminder.sound = v
