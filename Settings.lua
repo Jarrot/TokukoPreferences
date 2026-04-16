@@ -696,6 +696,25 @@ function TokukoP.CreateSettingsPanel()
       if settingsPreviewActive then TokukoP.ToggleSettingsPreview() end
     end)
   end
+
+  -- Auto-enter preview when TokukoPreferences is selected in the sidebar,
+  -- and exit preview when navigating to any other section.
+  -- E.Config_UpdateLeftButtons fires on every sidebar navigation via
+  -- hooksecurefunc(AceConfigRegistry, 'NotifyChange', ...) inside ElvUI.
+  if E.Config_UpdateLeftButtons then
+    hooksecurefunc(E, "Config_UpdateLeftButtons", function()
+      if not E.Config_GetWindow then return end
+      local frame = E:Config_GetWindow()
+      if not frame or not frame.obj then return end
+      local status = frame.obj.status
+      local selected = status and status.groups and status.groups.selected
+      if selected == "TokukoPreferences" then
+        if not settingsPreviewActive then TokukoP.ToggleSettingsPreview() end
+      else
+        if settingsPreviewActive then TokukoP.ToggleSettingsPreview() end
+      end
+    end)
+  end
 end
 
 -- ===============================
