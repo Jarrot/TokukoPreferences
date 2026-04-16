@@ -687,33 +687,12 @@ function TokukoP.CreateSettingsPanel()
     end)
   end
 
-  -- Exit preview when /ec is closed. Two paths:
-  --   ACD:Close("ElvUI") — called when /ec is toggled off via command
-  --   ACD:CloseAll()     — called when ESC or X button is used
-  -- Track whether ElvUI settings are open so CloseAll knows whether to act.
-  local ACD = LibStub and LibStub("AceConfigDialog-3.0", true)
-  if not ACD then return end
-
-  local elvuiOpen = false
-
-  if ACD.Open then
-    hooksecurefunc(ACD, "Open", function(_, appName)
-      if appName == "ElvUI" then elvuiOpen = true end
-    end)
-  end
-
-  if ACD.Close then
-    hooksecurefunc(ACD, "Close", function(_, appName)
-      if appName ~= "ElvUI" then return end
-      elvuiOpen = false
-      if settingsPreviewActive then TokukoP.ToggleSettingsPreview() end
-    end)
-  end
-
-  if ACD.CloseAll then
-    hooksecurefunc(ACD, "CloseAll", function()
-      if not elvuiOpen then return end
-      elvuiOpen = false
+  -- Exit preview whenever /ec closes. Every close path (ESC, X button,
+  -- /ec command, game menu) eventually hides the ACD frame, which fires
+  -- E.Config_WindowClosed via ElvUI's own OnHide hook. Hooking that
+  -- function is the single reliable signal that covers all paths.
+  if E.Config_WindowClosed then
+    hooksecurefunc(E, "Config_WindowClosed", function()
       if settingsPreviewActive then TokukoP.ToggleSettingsPreview() end
     end)
   end
