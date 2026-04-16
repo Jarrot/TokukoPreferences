@@ -494,6 +494,17 @@ function HealerManaModule.TogglePreview()
   UpdateDisplay()
 end
 
+function HealerManaModule.EnterPreview()
+  previewMode = true
+  if container then container:Show() end
+  UpdateDisplay()
+end
+
+function HealerManaModule.ExitPreview()
+  previewMode = false
+  UpdateDisplay()
+end
+
 function HealerManaModule.RefreshBgAlpha()
   ApplyBgAlpha()
 end

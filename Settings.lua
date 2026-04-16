@@ -146,14 +146,6 @@ local function InsertElvUIOptions()
           TokukoP.modules.HealerMana.RefreshDisplay()
         end,
       },
-      healerManaPreview = {
-        order = 32, type = "execute",
-        name = function()
-          return TokukoP.modules.HealerMana.IsPreview() and "Hide Preview" or "Preview (5 fake healers)"
-        end,
-        desc = "Show 5 fake healers so you can see font/color changes and drag the frame to reposition it.",
-        func = function() TokukoP.modules.HealerMana.TogglePreview() end,
-      },
       healerManaDisplayMode = {
         order = 33, type = "select",
         name  = "Display",
@@ -311,6 +303,143 @@ local function InsertElvUIOptions()
           db.CombatRes.elvuiIcons = v
           TokukoP.modules.CombatRes.RebuildAndRefresh()
         end,
+      },
+      combatResContentOnly = {
+        order = 49, type = "toggle",
+        name  = "Show in Content Only",
+        desc  = "Only show during instanced content (dungeons, raids, M+, delves).\nHides automatically when in the open world or capital cities.",
+        get   = function() return db.CombatRes.contentOnly end,
+        set   = function(_, v)
+          db.CombatRes.contentOnly = v
+          TokukoP.modules.CombatRes.RefreshDisplay()
+        end,
+      },
+      combatResGrowLeft = {
+        order = 50, type = "toggle",
+        name  = "Grow Left",
+        desc  = "When disabled (default): Rebirth icon is on the left, Reincarnation extends to the right.\nWhen enabled: Rebirth icon is on the right, Reincarnation extends to the left.\nThe anchored icon stays fixed when switching between characters.",
+        get   = function() return db.CombatRes.growLeft end,
+        set   = function(_, v)
+          db.CombatRes.growLeft = v
+          TokukoP.modules.CombatRes.RebuildAndRefresh()
+        end,
+      },
+
+      -- ── Pet Reminder ──────────────────────────────────────
+      petReminderHeader = {
+        order = 60, type = "header", name = "Pet Reminder (Hunter / Warlock / Unholy DK)",
+      },
+      petReminderEnabled = {
+        order = 61, type = "toggle",
+        name  = "|cff00ff00Enable|r",
+        desc  = "Show a flashing on-screen warning when you have no active pet.\nHunter: all specs (Lone Wolf removed in 11.1).\nWarlock: all specs.\nDeath Knight: Unholy only (ghoul via Raise Dead). Auto-hides when swapping to Blood or Frost.",
+        get   = function() return db.PetReminder.enabled end,
+        set   = function(_, v)
+          db.PetReminder.enabled = v
+          TokukoP.modules.PetReminder.RefreshDisplay()
+        end,
+      },
+      petReminderMessage = {
+        order = 62, type = "input", width = "full",
+        name  = "Warning Message",
+        desc  = "Text displayed when your pet is missing or dead (out of combat).",
+        get   = function() return db.PetReminder.message end,
+        set   = function(_, v)
+          db.PetReminder.message = v
+          TokukoP.modules.PetReminder.RefreshLabel()
+        end,
+      },
+      petReminderCombatMessageEnabled = {
+        order = 63, type = "toggle",
+        name  = "Different Text In Combat",
+        desc  = "Show a separate message while in combat (e.g. more urgent).",
+        get   = function() return db.PetReminder.combatMessageEnabled end,
+        set   = function(_, v)
+          db.PetReminder.combatMessageEnabled = v
+          TokukoP.modules.PetReminder.RefreshLabel()
+        end,
+      },
+      petReminderCombatMessage = {
+        order = 64, type = "input", width = "full",
+        name  = "Combat Message",
+        desc  = "Text shown while in combat. Leave blank to use the same message as out of combat.",
+        disabled = function() return not db.PetReminder.combatMessageEnabled end,
+        get   = function() return db.PetReminder.combatMessage end,
+        set   = function(_, v)
+          db.PetReminder.combatMessage = v
+          TokukoP.modules.PetReminder.RefreshLabel()
+        end,
+      },
+      petReminderFont = {
+        order = 65, type = "select",
+        name  = "Font",
+        values  = TokukoP.modules.PetReminder.FONT_VALUES,
+        sorting = TokukoP.modules.PetReminder.FONT_SORTING,
+        get  = function() return db.PetReminder.font end,
+        set  = function(_, v)
+          db.PetReminder.font = v
+          TokukoP.modules.PetReminder.RefreshLabel()
+        end,
+      },
+      petReminderFontSize = {
+        order = 66, type = "range",
+        name  = "Font Size",
+        min = 12, max = 64, step = 1,
+        get  = function() return db.PetReminder.fontSize end,
+        set  = function(_, v)
+          db.PetReminder.fontSize = v
+          TokukoP.modules.PetReminder.RefreshLabel()
+        end,
+      },
+      petReminderEffect = {
+        order = 67, type = "select",
+        name  = "Effect",
+        desc  = "None: plain static text.\nPulse: alpha fade in/out.\nShake: rapid position jitter.\nBounce: smooth up/down float.\nScale Pulse: text grows and shrinks.\nColor Flash: alternates between your colour and bright yellow.",
+        values  = TokukoP.modules.PetReminder.EFFECT_VALUES,
+        sorting = TokukoP.modules.PetReminder.EFFECT_SORTING,
+        get  = function() return db.PetReminder.effect end,
+        set  = function(_, v) db.PetReminder.effect = v end,
+      },
+      petReminderFlashRate = {
+        order = 68, type = "range",
+        name  = "Effect Speed",
+        desc  = "Speed of the selected effect. Higher = faster.",
+        min = 0.5, max = 5.0, step = 0.5,
+        get  = function() return db.PetReminder.flashRate end,
+        set  = function(_, v) db.PetReminder.flashRate = v end,
+      },
+      petReminderColor = {
+        order = 69, type = "color",
+        name  = "Color",
+        desc  = "Text color. Also used as the primary color for Color Flash.",
+        hasAlpha = false,
+        get  = function()
+          local c = db.PetReminder.color
+          return c.r, c.g, c.b
+        end,
+        set  = function(_, r, g, b)
+          db.PetReminder.color = { r = r, g = g, b = b }
+          TokukoP.modules.PetReminder.RefreshLabel()
+        end,
+      },
+      petReminderSound = {
+        order = 70, type = "select",
+        name  = "Sound on Pet Death",
+        desc  = "Sound to play when your pet dies in combat.\nNone: no sound.",
+        values  = TokukoP.modules.PetReminder.SOUND_VALUES,
+        sorting = TokukoP.modules.PetReminder.SOUND_SORTING,
+        get  = function() return db.PetReminder.sound end,
+        set  = function(_, v)
+          db.PetReminder.sound = v
+          TokukoP.modules.PetReminder.PreviewSound()
+        end,
+      },
+      petReminderLocked = {
+        order = 72, type = "toggle",
+        name  = "Lock Position",
+        desc  = "Prevent the warning frame from being dragged.",
+        get   = function() return db.PetReminder.locked end,
+        set   = function(_, v) TokukoP.modules.PetReminder.SetLocked(v) end,
       },
 
       -- ── Tooltip ───────────────────────────────────────────
@@ -491,30 +620,50 @@ local function BuildFallbackWindow()
 end
 
 -- ===============================
+-- Settings Preview
+-- ===============================
+
+local settingsPreviewActive = false
+
+function TokukoP.ToggleSettingsPreview()
+  settingsPreviewActive = not settingsPreviewActive
+  for _, mod in pairs(TokukoP.modules) do
+    if settingsPreviewActive then
+      if mod.EnterPreview then mod.EnterPreview() end
+    else
+      if mod.ExitPreview then mod.ExitPreview() end
+    end
+  end
+end
+
+function TokukoP.ExitSettingsPreview()
+  if not settingsPreviewActive then return end
+  settingsPreviewActive = false
+  for _, mod in pairs(TokukoP.modules) do
+    if mod.ExitPreview then mod.ExitPreview() end
+  end
+end
+
+-- ===============================
 -- Public API
 -- ===============================
 
 function TokukoP.OpenSettings()
   local E = GetE()
   if E then
-    -- Open ElvUI config panel directly on our section
     if not E.Options then
       print("|cffffcc00TokukoP:|r ElvUI options not loaded yet. Try again in a moment.")
       return
     end
-    -- Use LibElvUIPlugin or open /ec directly
-    local EP = LibStub and LibStub("LibElvUIPlugin-1.0", true)
-    if EP then
-      E:ToggleOptions()
-    else
-      E:ToggleOptions()
-    end
+    E:ToggleOptions()
     return
   end
   -- Fallback: standalone window
   if settingsFrame then settingsFrame:Hide(); settingsFrame = nil end
   settingsFrame = BuildFallbackWindow()
+  settingsFrame:HookScript("OnHide", TokukoP.ExitSettingsPreview)
   settingsFrame:Show()
+  if not settingsPreviewActive then TokukoP.ToggleSettingsPreview() end
 end
 
 function TokukoP.CreateSettingsPanel()
@@ -525,9 +674,37 @@ function TokukoP.CreateSettingsPanel()
   if EP then
     EP:RegisterPlugin(ADDON_NAME, InsertElvUIOptions)
   else
-    -- Fallback: insert directly if ElvUI_Options is already loaded
     C_Timer.After(1, function()
       if E.Options then InsertElvUIOptions() end
+    end)
+  end
+
+  -- Exit preview whenever /ec closes. Every close path (ESC, X button,
+  -- /ec command, game menu) eventually hides the ACD frame, which fires
+  -- E.Config_WindowClosed via ElvUI's own OnHide hook. Hooking that
+  -- function is the single reliable signal that covers all paths.
+  if E.Config_WindowClosed then
+    hooksecurefunc(E, "Config_WindowClosed", function()
+      if settingsPreviewActive then TokukoP.ToggleSettingsPreview() end
+    end)
+  end
+
+  -- Auto-enter preview when TokukoPreferences is selected in the sidebar,
+  -- and exit preview when navigating to any other section.
+  -- E.Config_UpdateLeftButtons fires on every sidebar navigation via
+  -- hooksecurefunc(AceConfigRegistry, 'NotifyChange', ...) inside ElvUI.
+  if E.Config_UpdateLeftButtons then
+    hooksecurefunc(E, "Config_UpdateLeftButtons", function()
+      if not E.Config_GetWindow then return end
+      local frame = E:Config_GetWindow()
+      if not frame or not frame.obj then return end
+      local status = frame.obj.status
+      local selected = status and status.groups and status.groups.selected
+      if selected == "TokukoPreferences" then
+        if not settingsPreviewActive then TokukoP.ToggleSettingsPreview() end
+      else
+        if settingsPreviewActive then TokukoP.ToggleSettingsPreview() end
+      end
     end)
   end
 end

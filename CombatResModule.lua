@@ -29,6 +29,8 @@ local DEFAULTS = {
   countFontSize = 12,
   x             = 0,
   y             = 200,
+  contentOnly   = true,   -- hide outside instanced content
+  growLeft      = false,  -- false = Rebirth left, grows right; true = Rebirth right, grows left
 }
 
 local FONT_DEFS_FALLBACK = {
@@ -55,6 +57,7 @@ local reincarIcon  = nil   -- nil on non-Shaman
 local isShaman     = false -- set in Initialize
 local db           = nil
 local tickerHandle = nil
+local previewMode  = false
 
 -- Debug counters (read by DebugModule via CombatResModule.GetEventStats)
 local eventStats = {
@@ -114,12 +117,35 @@ local function GetReincarCDInfo()
   return 0, 0
 end
 
+-- Returns true when the frame should be shown (respects contentOnly setting).
+-- Always returns true in previewMode so the frame is visible in the settings UI.
+local function IsContentVisible()
+  if previewMode then return true end
+  if not db.contentOnly then return true end
+  local inInst, instType = IsInInstance()
+  return inInst and instType ~= "pvp" and instType ~= "arena"
+end
+
 -- ===============================
 -- UI Update
 -- ===============================
 
 local function UpdateDisplay()
   if not container or not container:IsShown() then return end
+
+  -- Preview: show fake data so the icons have visible content while
+  -- adjusting settings (no real charges/CDs exist outside an encounter).
+  if previewMode then
+    rebirthIcon._countLabel:SetText("2")
+    rebirthIcon._countLabel:Show()
+    rebirthIcon._timerLabel:SetText("3:45")
+    rebirthIcon._timerLabel:Show()
+    if reincarIcon then
+      reincarIcon._timerLabel:SetText("1:30")
+      reincarIcon._timerLabel:Show()
+    end
+    return
+  end
 
   -- ── Rebirth ──────────────────────────────────────────────────────
   local cur, max, chargeStart, chargeDur = GetRebirthChargeInfo()
@@ -186,7 +212,7 @@ end
 local function StartTicker()
   if tickerHandle then return end
   tickerHandle = C_Timer.NewTicker(0.2, function()
-    if not db.enabled or not container or not container:IsShown() then
+    if (not db.enabled and not previewMode) or not container or not container:IsShown() then
       tickerHandle:Cancel()
       tickerHandle = nil
       return
@@ -261,10 +287,19 @@ end
 local function BuildContainer()
   if container then return end
 
-  local totalW = isShaman and (ICON_SIZE * 2 + ICON_GAP) or ICON_SIZE
+  local twoIcons = isShaman
+  local totalW   = twoIcons and (ICON_SIZE * 2 + ICON_GAP) or ICON_SIZE
   container = CreateFrame("Frame", "TokukoPCombatResFrame", UIParent)
   container:SetSize(totalW, ICON_SIZE)
-  container:SetPoint("CENTER", UIParent, "CENTER", db.x, db.y)
+
+  -- Anchor left edge (growLeft=false) or right edge (growLeft=true) so the
+  -- fixed icon stays put when the second icon appears or disappears.
+  if db.growLeft then
+    container:SetPoint("TOPRIGHT", UIParent, "CENTER", db.x, db.y)
+  else
+    container:SetPoint("TOPLEFT",  UIParent, "CENTER", db.x, db.y)
+  end
+
   container:SetClampedToScreen(true)
   container:SetMovable(true)
   container:EnableMouse(true)
@@ -275,16 +310,31 @@ local function BuildContainer()
   container:SetScript("OnDragStop", function(self)
     self:StopMovingOrSizing()
     local ux, uy = UIParent:GetCenter()
-    db.x = self:GetLeft() - ux + self:GetWidth()  / 2
-    db.y = self:GetTop()  - uy - self:GetHeight() / 2
+    -- Save the anchored edge so position is stable across 1- and 2-icon layouts.
+    if db.growLeft then
+      db.x = self:GetRight() - ux
+    else
+      db.x = self:GetLeft() - ux
+    end
+    db.y = self:GetTop() - uy
   end)
 
   rebirthIcon = BuildIconFrame(container, REBIRTH_ID, true)
-  rebirthIcon:SetPoint("LEFT", container, "LEFT", 0, 0)
 
-  if isShaman then
-    reincarIcon = BuildIconFrame(container, REINCARNATION_ID, false)
-    reincarIcon:SetPoint("LEFT", rebirthIcon, "RIGHT", ICON_GAP, 0)
+  if not db.growLeft then
+    -- Default: Rebirth on left, Reincarnation extends right
+    rebirthIcon:SetPoint("LEFT", container, "LEFT", 0, 0)
+    if twoIcons then
+      reincarIcon = BuildIconFrame(container, REINCARNATION_ID, false)
+      reincarIcon:SetPoint("LEFT", rebirthIcon, "RIGHT", ICON_GAP, 0)
+    end
+  else
+    -- growLeft: Rebirth on right, Reincarnation extends left
+    rebirthIcon:SetPoint("RIGHT", container, "RIGHT", 0, 0)
+    if twoIcons then
+      reincarIcon = BuildIconFrame(container, REINCARNATION_ID, false)
+      reincarIcon:SetPoint("RIGHT", rebirthIcon, "LEFT", -ICON_GAP, 0)
+    end
   end
 
   CombatResModule.RefreshFonts()
@@ -309,7 +359,7 @@ end
 
 function CombatResModule.RefreshDisplay()
   if not db then return end
-  if db.enabled then
+  if db.enabled and IsContentVisible() then
     if not container then BuildContainer() end
     container:Show()
     SyncSweeps()
@@ -325,6 +375,36 @@ function CombatResModule.SetLocked(v)
   db.locked = v
 end
 
+
+function CombatResModule.EnterPreview()
+  previewMode = true
+  -- Non-Shamans: rebuild with both icons so the full UI is visible in preview.
+  if not isShaman then
+    if container then container:Hide(); container = nil; rebirthIcon = nil; reincarIcon = nil end
+    isShaman = true  -- temporarily force two-icon layout
+    BuildContainer()
+    isShaman = false -- restore real class state
+  elseif not container then
+    BuildContainer()
+  end
+  container:Show()
+  SyncSweeps()
+  UpdateDisplay()
+  StartTicker()
+end
+
+function CombatResModule.ExitPreview()
+  previewMode = false
+  -- If we built a forced two-icon container for preview, tear it down so the
+  -- real single-icon layout is restored on next RefreshDisplay.
+  if not isShaman and reincarIcon then
+    container:Hide()
+    container   = nil
+    rebirthIcon = nil
+    reincarIcon = nil
+  end
+  CombatResModule.RefreshDisplay()
+end
 
 function CombatResModule.RebuildAndRefresh()
   StopTicker()
@@ -363,7 +443,7 @@ function CombatResModule.Initialize()
     end
   end
 
-  if db.enabled then
+  if db.enabled and IsContentVisible() then
     BuildContainer()
     container:Show()
     SyncSweeps()
