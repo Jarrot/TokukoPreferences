@@ -36,6 +36,22 @@ local function InsertElvUIOptions()
     name  = "|cffffcc00Tokuko|rPreferences",
     args  = {
 
+      -- ── Preview ───────────────────────────────────────────
+      previewToggle = {
+        order = 0, type = "execute",
+        name  = function()
+          return settingsPreviewActive and "|cffff4444Exit Preview|r" or "|cff44ff44Enter Preview|r"
+        end,
+        desc  = "Show all overlay frames with sample data so you can adjust settings live.\nToggled automatically when you navigate to this page.",
+        func  = function()
+          if settingsPreviewActive then
+            TokukoP.ExitSettingsPreview()
+          else
+            TokukoP.EnterSettingsPreview()
+          end
+        end,
+      },
+
       -- ── Drinking ─────────────────────────────────────────
       drinkingHeader = {
         order = 1, type = "header", name = "Drinking Announcements",
@@ -301,6 +317,26 @@ local function InsertElvUIOptions()
         get   = function() return db.CombatRes.elvuiIcons end,
         set   = function(_, v)
           db.CombatRes.elvuiIcons = v
+          TokukoP.modules.CombatRes.RebuildAndRefresh()
+        end,
+      },
+      combatResContentOnly = {
+        order = 49, type = "toggle",
+        name  = "Show in Content Only",
+        desc  = "Only show during instanced content (dungeons, raids, M+, delves).\nHides automatically when in the open world or capital cities.",
+        get   = function() return db.CombatRes.contentOnly end,
+        set   = function(_, v)
+          db.CombatRes.contentOnly = v
+          TokukoP.modules.CombatRes.RefreshDisplay()
+        end,
+      },
+      combatResGrowLeft = {
+        order = 50, type = "toggle",
+        name  = "Grow Left",
+        desc  = "When disabled (default): Rebirth icon is on the left, Reincarnation extends to the right.\nWhen enabled: Rebirth icon is on the right, Reincarnation extends to the left.\nThe anchored icon stays fixed when switching between characters.",
+        get   = function() return db.CombatRes.growLeft end,
+        set   = function(_, v)
+          db.CombatRes.growLeft = v
           TokukoP.modules.CombatRes.RebuildAndRefresh()
         end,
       },
