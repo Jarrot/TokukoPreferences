@@ -691,19 +691,28 @@ function TokukoP.CreateSettingsPanel()
     end)
   end
 
-  -- Hook AceConfigDialog:SelectGroup — fires when any sidebar button is clicked.
-  -- ElvUI calls ACD:SelectGroup('ElvUI', key) for all sidebar navigation;
-  -- ACD:Open is only called once on open with no path argument.
+  -- Hook AceConfigDialog:SelectGroup — fires when any sidebar button is clicked,
+  -- AND when AceConfig re-renders the current page (e.g. after an execute button
+  -- click). Track whether we are already on the TokukoPreferences page so that
+  -- re-renders don't fight the Toggle Preview button by re-entering immediately.
   local ACD = LibStub and LibStub("AceConfigDialog-3.0", true)
   if ACD then
+    local onTokukoPage = false
     if ACD.SelectGroup then
       hooksecurefunc(ACD, "SelectGroup", function(self, appName, ...)
         if appName ~= "ElvUI" then return end
         local firstKey = (...)
         if firstKey == "TokukoPreferences" then
-          TokukoP.EnterSettingsPreview()
+          if not onTokukoPage then
+            onTokukoPage = true
+            TokukoP.EnterSettingsPreview()
+          end
+          -- already on the page: re-render, don't touch preview state
         else
-          TokukoP.ExitSettingsPreview()
+          if onTokukoPage then
+            onTokukoPage = false
+            TokukoP.ExitSettingsPreview()
+          end
         end
       end)
     end
