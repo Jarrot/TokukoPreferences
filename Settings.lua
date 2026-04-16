@@ -36,14 +36,6 @@ local function InsertElvUIOptions()
     name  = "|cffffcc00Tokuko|rPreferences",
     args  = {
 
-      -- ── Preview ───────────────────────────────────────────
-      previewToggle = {
-        order = 0, type = "execute",
-        name  = "Toggle Preview",
-        desc  = "Show/hide all overlay frames with sample data so you can adjust settings live.",
-        func  = function() TokukoP.ToggleSettingsPreview() end,
-      },
-
       -- ── Drinking ─────────────────────────────────────────
       drinkingHeader = {
         order = 1, type = "header", name = "Drinking Announcements",
