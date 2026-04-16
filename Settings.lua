@@ -40,14 +40,8 @@ local function InsertElvUIOptions()
       previewToggle = {
         order = 0, type = "execute",
         name  = "Toggle Preview",
-        desc  = "Show/hide all overlay frames with sample data.\nAlso toggled automatically when you navigate to this page.",
-        func  = function()
-          if settingsPreviewActive then
-            TokukoP.ExitSettingsPreview()
-          else
-            TokukoP.EnterSettingsPreview()
-          end
-        end,
+        desc  = "Show/hide all overlay frames with sample data so you can adjust settings live.",
+        func  = function() TokukoP.ToggleSettingsPreview() end,
       },
 
       -- ── Drinking ─────────────────────────────────────────
@@ -639,11 +633,14 @@ end
 
 local settingsPreviewActive = false
 
-function TokukoP.EnterSettingsPreview()
-  if settingsPreviewActive then return end
-  settingsPreviewActive = true
+function TokukoP.ToggleSettingsPreview()
+  settingsPreviewActive = not settingsPreviewActive
   for _, mod in pairs(TokukoP.modules) do
-    if mod.EnterPreview then mod.EnterPreview() end
+    if settingsPreviewActive then
+      if mod.EnterPreview then mod.EnterPreview() end
+    else
+      if mod.ExitPreview then mod.ExitPreview() end
+    end
   end
 end
 
@@ -688,21 +685,6 @@ function TokukoP.CreateSettingsPanel()
     -- Fallback: insert directly if ElvUI_Options is already loaded
     C_Timer.After(1, function()
       if E.Options then InsertElvUIOptions() end
-    end)
-  end
-
-  -- Hook /ec OnHide so preview turns off when the settings window is closed.
-  local ACD = LibStub and LibStub("AceConfigDialog-3.0", true)
-  if ACD and ACD.Open then
-    hooksecurefunc(ACD, "Open", function(self, appName, ...)
-      if appName ~= "ElvUI" then return end
-      C_Timer.After(0, function()
-        local frameObj = ACD.OpenFrames and ACD.OpenFrames["ElvUI"]
-        if frameObj and frameObj.frame and not frameObj.frame._tpPreviewHooked then
-          frameObj.frame._tpPreviewHooked = true
-          frameObj.frame:HookScript("OnHide", TokukoP.ExitSettingsPreview)
-        end
-      end)
     end)
   end
 end
