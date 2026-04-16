@@ -39,10 +39,8 @@ local function InsertElvUIOptions()
       -- ── Preview ───────────────────────────────────────────
       previewToggle = {
         order = 0, type = "execute",
-        name  = function()
-          return settingsPreviewActive and "|cffff4444Exit Preview|r" or "|cff44ff44Enter Preview|r"
-        end,
-        desc  = "Show all overlay frames with sample data so you can adjust settings live.\nToggled automatically when you navigate to this page.",
+        name  = "Toggle Preview",
+        desc  = "Show/hide all overlay frames with sample data.\nAlso toggled automatically when you navigate to this page.",
         func  = function()
           if settingsPreviewActive then
             TokukoP.ExitSettingsPreview()
