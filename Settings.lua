@@ -691,45 +691,19 @@ function TokukoP.CreateSettingsPanel()
     end)
   end
 
-  -- Hook AceConfigDialog:SelectGroup — fires when any sidebar button is clicked,
-  -- AND when AceConfig re-renders the current page (e.g. after an execute button
-  -- click). Track whether we are already on the TokukoPreferences page so that
-  -- re-renders don't fight the Toggle Preview button by re-entering immediately.
+  -- Hook /ec OnHide so preview turns off when the settings window is closed.
   local ACD = LibStub and LibStub("AceConfigDialog-3.0", true)
-  if ACD then
-    local onTokukoPage = false
-    if ACD.SelectGroup then
-      hooksecurefunc(ACD, "SelectGroup", function(self, appName, ...)
-        if appName ~= "ElvUI" then return end
-        local firstKey = (...)
-        if firstKey == "TokukoPreferences" then
-          if not onTokukoPage then
-            onTokukoPage = true
-            TokukoP.EnterSettingsPreview()
-          end
-          -- already on the page: re-render, don't touch preview state
-        else
-          if onTokukoPage then
-            onTokukoPage = false
-            TokukoP.ExitSettingsPreview()
-          end
+  if ACD and ACD.Open then
+    hooksecurefunc(ACD, "Open", function(self, appName, ...)
+      if appName ~= "ElvUI" then return end
+      C_Timer.After(0, function()
+        local frameObj = ACD.OpenFrames and ACD.OpenFrames["ElvUI"]
+        if frameObj and frameObj.frame and not frameObj.frame._tpPreviewHooked then
+          frameObj.frame._tpPreviewHooked = true
+          frameObj.frame:HookScript("OnHide", TokukoP.ExitSettingsPreview)
         end
       end)
-    end
-
-    -- Hook Open only to attach the OnHide listener (closing /ec exits preview)
-    if ACD.Open then
-      hooksecurefunc(ACD, "Open", function(self, appName, ...)
-        if appName ~= "ElvUI" then return end
-        C_Timer.After(0, function()
-          local frameObj = ACD.OpenFrames and ACD.OpenFrames["ElvUI"]
-          if frameObj and frameObj.frame and not frameObj.frame._tpPreviewHooked then
-            frameObj.frame._tpPreviewHooked = true
-            frameObj.frame:HookScript("OnHide", TokukoP.ExitSettingsPreview)
-          end
-        end)
-      end)
-    end
+    end)
   end
 end
 
