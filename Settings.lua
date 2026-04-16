@@ -682,9 +682,45 @@ function TokukoP.CreateSettingsPanel()
   if EP then
     EP:RegisterPlugin(ADDON_NAME, InsertElvUIOptions)
   else
-    -- Fallback: insert directly if ElvUI_Options is already loaded
     C_Timer.After(1, function()
       if E.Options then InsertElvUIOptions() end
+    end)
+  end
+
+  local ACD = LibStub and LibStub("AceConfigDialog-3.0", true)
+  if not ACD then return end
+
+  -- Auto-enter preview when the user navigates to TokukoPreferences in the
+  -- sidebar. onTokukoPage tracks whether we are already on this page so that
+  -- in-page re-renders (fired after every control interaction) don't re-enter
+  -- preview when the user has manually toggled it off via the button.
+  local onTokukoPage = false
+  if ACD.SelectGroup then
+    hooksecurefunc(ACD, "SelectGroup", function(_, appName, ...)
+      if appName ~= "ElvUI" then return end
+      local firstKey = (...)
+      if firstKey == "TokukoPreferences" then
+        if not onTokukoPage then
+          onTokukoPage = true
+          if not settingsPreviewActive then
+            TokukoP.ToggleSettingsPreview()
+          end
+        end
+      else
+        onTokukoPage = false
+      end
+    end)
+  end
+
+  -- Exit preview and reset page-tracking when /ec is actually closed.
+  -- ACD:Close is called only on genuine close, not on re-renders — safe to use.
+  if ACD.Close then
+    hooksecurefunc(ACD, "Close", function(_, appName)
+      if appName ~= "ElvUI" then return end
+      onTokukoPage = false
+      if settingsPreviewActive then
+        TokukoP.ToggleSettingsPreview()
+      end
     end)
   end
 end
