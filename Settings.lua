@@ -667,11 +667,11 @@ function TokukoP.OpenSettings()
     return
   end
   -- Fallback: standalone window
-  TokukoP.EnterSettingsPreview()
   if settingsFrame then settingsFrame:Hide(); settingsFrame = nil end
   settingsFrame = BuildFallbackWindow()
   settingsFrame:HookScript("OnHide", TokukoP.ExitSettingsPreview)
   settingsFrame:Show()
+  if not settingsPreviewActive then TokukoP.ToggleSettingsPreview() end
 end
 
 function TokukoP.CreateSettingsPanel()
