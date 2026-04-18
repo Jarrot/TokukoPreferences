@@ -390,6 +390,10 @@ function PetReminderModule.OnEvent(event, ...)
     RefreshDisplay()
 
   elseif event == "PLAYER_ENTERING_WORLD" then
+    -- Call immediately (handles /reload where pet data is already available),
+    -- then schedule a follow-up for fresh login where UnitExists("pet") may
+    -- return false until the client finishes registering the pet unit.
     RefreshDisplay()
+    C_Timer.After(2, RefreshDisplay)
   end
 end
