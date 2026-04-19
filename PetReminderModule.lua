@@ -360,6 +360,7 @@ function PetReminderModule.RegisterEvents(frame)
   frame:RegisterUnitEvent("UNIT_DIED", "pet")        -- pet death → play sound
   frame:RegisterEvent("UNIT_PET")                    -- pet summoned or dismissed
   frame:RegisterEvent("PLAYER_ENTERING_WORLD")
+  frame:RegisterEvent("LOADING_SCREEN_DISABLED")     -- world fully visible; safe to query pet unit
   frame:RegisterEvent("PLAYER_REGEN_DISABLED")       -- swap to combat message text
   frame:RegisterEvent("PLAYER_REGEN_ENABLED")        -- pet may have died; swap text back
   frame:RegisterEvent("PLAYER_SPECIALIZATION_CHANGED")
@@ -389,13 +390,18 @@ function PetReminderModule.OnEvent(event, ...)
     UpdateLabelText()
     RefreshDisplay()
 
+  elseif event == "LOADING_SCREEN_DISABLED" then
+    -- Loading screen gone: world is rendered and unit data is available.
+    -- A short delay is enough since the client is fully settled.
+    C_Timer.After(0.5, RefreshDisplay)
+
   elseif event == "PLAYER_ENTERING_WORLD" then
-    -- Never check immediately: UnitExists("pet") is unreliable until the
-    -- client finishes registering units. Default state is hidden; we only
-    -- show the warning once we have confident data.
-    -- Fresh login/reload needs more time than a simple zone transition.
+    -- Fallback for transitions that have no loading screen (e.g. within-zone
+    -- teleports). LOADING_SCREEN_DISABLED covers login, reload, and zone
+    -- transitions that show a loading screen, so this is a safety net only.
     local isLogin, isReload = ...
-    local delay = (isLogin or isReload) and 3 or 1
-    C_Timer.After(delay, RefreshDisplay)
+    if not isLogin and not isReload then
+      C_Timer.After(1, RefreshDisplay)
+    end
   end
 end
