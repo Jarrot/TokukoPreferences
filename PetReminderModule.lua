@@ -393,7 +393,7 @@ function PetReminderModule.OnEvent(event, ...)
   elseif event == "LOADING_SCREEN_DISABLED" then
     -- Loading screen gone: world is rendered and unit data is available.
     -- A short delay is enough since the client is fully settled.
-    C_Timer.After(0.5, RefreshDisplay)
+    C_Timer.After(3, RefreshDisplay)
 
   elseif event == "PLAYER_ENTERING_WORLD" then
     -- Fallback for transitions that have no loading screen (e.g. within-zone
