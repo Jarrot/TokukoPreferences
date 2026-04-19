@@ -382,7 +382,7 @@ end
 
 function PetReminderModule.RegisterEvents(frame)
   if not isEligibleClass then return end
-  frame:RegisterUnitEvent("UNIT_DIED", "pet")        -- pet death → play sound
+  frame:RegisterEvent("UNIT_DIED")                   -- pet death → play sound; filter by unit in handler
   frame:RegisterEvent("UNIT_PET")                    -- pet summoned or dismissed
   frame:RegisterEvent("PLAYER_ENTERING_WORLD")
   frame:RegisterEvent("LOADING_SCREEN_DISABLED")     -- world fully visible; safe to query pet unit
@@ -395,7 +395,8 @@ function PetReminderModule.OnEvent(event, ...)
   if not db then return end
 
   if event == "UNIT_DIED" then
-    -- Fired only for "pet" via RegisterUnitEvent — our pet just died
+    local unitID = ...
+    if unitID ~= "pet" then return end
     PlayWarningSound()
     RefreshDisplay()
 
