@@ -390,10 +390,12 @@ function PetReminderModule.OnEvent(event, ...)
     RefreshDisplay()
 
   elseif event == "PLAYER_ENTERING_WORLD" then
-    -- Call immediately (handles /reload where pet data is already available),
-    -- then schedule a follow-up for fresh login where UnitExists("pet") may
-    -- return false until the client finishes registering the pet unit.
-    RefreshDisplay()
-    C_Timer.After(2, RefreshDisplay)
+    -- Never check immediately: UnitExists("pet") is unreliable until the
+    -- client finishes registering units. Default state is hidden; we only
+    -- show the warning once we have confident data.
+    -- Fresh login/reload needs more time than a simple zone transition.
+    local isLogin, isReload = ...
+    local delay = (isLogin or isReload) and 3 or 1
+    C_Timer.After(delay, RefreshDisplay)
   end
 end
