@@ -84,6 +84,7 @@ PetReminderModule.SOUND_SORTING = { "none", "raid_warning", "alarm", "ui_error",
 local container       = nil
 local label           = nil
 local tickerHandle    = nil
+local loginPollHandle = nil
 local isEligibleClass = false
 local isDragging      = false
 local db              = nil
@@ -229,7 +230,7 @@ local function UpdateLabelText()
 end
 
 local function RefreshDisplay()
-  if not previewMode and not ShouldWarn() then
+  if not previewMode and (not ShouldWarn() or IsMounted()) then
     if container then container:Hide() end
     StopEffect()
     return
@@ -242,6 +243,26 @@ local function RefreshDisplay()
     container:Show()
     StartEffect()
   end
+end
+
+-- ===============================
+-- Login Poll
+-- ===============================
+
+-- After a loading screen, pet unit data becomes available at an unpredictable
+-- time. Poll every 0.5s for up to 15s, refreshing the display each tick.
+-- Stops early once the pet is confirmed present.
+local function StartLoginPoll()
+  if loginPollHandle then loginPollHandle:Cancel(); loginPollHandle = nil end
+  local elapsed = 0
+  loginPollHandle = C_Timer.NewTicker(0.5, function()
+    elapsed = elapsed + 0.5
+    RefreshDisplay()
+    if HasPet() or elapsed >= 15 then
+      loginPollHandle:Cancel()
+      loginPollHandle = nil
+    end
+  end)
 end
 
 -- ===============================
@@ -352,14 +373,17 @@ function PetReminderModule.Initialize()
 
   BuildContainer()
   PetReminderModule.RefreshLabel()
-  RefreshDisplay()
+  -- Do NOT call RefreshDisplay here: pet unit data is not available at
+  -- PLAYER_LOGIN. The frame starts hidden; PLAYER_ENTERING_WORLD drives
+  -- the first real check via the login poll.
 end
 
 function PetReminderModule.RegisterEvents(frame)
   if not isEligibleClass then return end
-  frame:RegisterUnitEvent("UNIT_DIED", "pet")        -- pet death → play sound
+  frame:RegisterEvent("UNIT_DIED")                   -- pet death → play sound; filter by unit in handler
   frame:RegisterEvent("UNIT_PET")                    -- pet summoned or dismissed
   frame:RegisterEvent("PLAYER_ENTERING_WORLD")
+  frame:RegisterEvent("LOADING_SCREEN_DISABLED")     -- world fully visible; safe to query pet unit
   frame:RegisterEvent("PLAYER_REGEN_DISABLED")       -- swap to combat message text
   frame:RegisterEvent("PLAYER_REGEN_ENABLED")        -- pet may have died; swap text back
   frame:RegisterEvent("PLAYER_SPECIALIZATION_CHANGED")
@@ -369,14 +393,15 @@ function PetReminderModule.OnEvent(event, ...)
   if not db then return end
 
   if event == "UNIT_DIED" then
-    -- Fired only for "pet" via RegisterUnitEvent — our pet just died
+    local unitID = ...
+    if unitID ~= "pet" then return end
     PlayWarningSound()
-    RefreshDisplay()  -- show the warning immediately
+    RefreshDisplay()
 
   elseif event == "UNIT_PET" then
     local unitID = ...
     if unitID ~= "player" then return end
-    RefreshDisplay()
+    C_Timer.After(0.2, RefreshDisplay)
 
   elseif event == "PLAYER_SPECIALIZATION_CHANGED" then
     local unitID = ...
@@ -389,7 +414,15 @@ function PetReminderModule.OnEvent(event, ...)
     UpdateLabelText()
     RefreshDisplay()
 
+  elseif event == "LOADING_SCREEN_DISABLED" then
+    -- Additional trigger for normal login/reload/zone transitions.
+    StartLoginPoll()
+
   elseif event == "PLAYER_ENTERING_WORLD" then
-    RefreshDisplay()
+    -- Always start the poll here. New characters may skip the normal loading
+    -- screen flow (intro cinematics, phased starter zones) so
+    -- LOADING_SCREEN_DISABLED may never fire. PLAYER_ENTERING_WORLD always
+    -- fires regardless of how the character enters the world.
+    StartLoginPoll()
   end
 end
