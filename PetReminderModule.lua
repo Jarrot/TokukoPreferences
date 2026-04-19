@@ -257,8 +257,6 @@ local function StartLoginPoll()
   local elapsed = 0
   loginPollHandle = C_Timer.NewTicker(0.5, function()
     elapsed = elapsed + 0.5
-    print(string.format("|cffffcc00PetReminder poll:|r t=%.1f ShouldWarn=%s HasPet=%s container=%s",
-      elapsed, tostring(ShouldWarn()), tostring(HasPet()), tostring(container ~= nil)))
     RefreshDisplay()
     if HasPet() or elapsed >= 15 then
       loginPollHandle:Cancel()
