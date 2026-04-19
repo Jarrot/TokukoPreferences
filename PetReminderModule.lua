@@ -84,10 +84,31 @@ PetReminderModule.SOUND_SORTING = { "none", "raid_warning", "alarm", "ui_error",
 local container       = nil
 local label           = nil
 local tickerHandle    = nil
+local loginPollHandle = nil
 local isEligibleClass = false
 local isDragging      = false
 local db              = nil
 local previewMode     = false
+
+-- ===============================
+-- Login Poll
+-- ===============================
+
+-- After a loading screen, pet unit data becomes available at an unpredictable
+-- time. Poll every 0.5s for up to 15s, refreshing the display each tick.
+-- Stops early once the pet is confirmed present.
+local function StartLoginPoll()
+  if loginPollHandle then loginPollHandle:Cancel(); loginPollHandle = nil end
+  local elapsed = 0
+  loginPollHandle = C_Timer.NewTicker(0.5, function()
+    elapsed = elapsed + 0.5
+    RefreshDisplay()
+    if HasPet() or elapsed >= 15 then
+      loginPollHandle:Cancel()
+      loginPollHandle = nil
+    end
+  end)
+end
 
 -- ===============================
 -- Sound
@@ -391,14 +412,14 @@ function PetReminderModule.OnEvent(event, ...)
     RefreshDisplay()
 
   elseif event == "LOADING_SCREEN_DISABLED" then
-    -- Loading screen gone: world is rendered and unit data is available.
-    -- A short delay is enough since the client is fully settled.
-    C_Timer.After(3, RefreshDisplay)
+    -- World is rendered but pet unit data arrives at an unpredictable time.
+    -- Poll repeatedly until the pet is confirmed or the window expires.
+    StartLoginPoll()
 
   elseif event == "PLAYER_ENTERING_WORLD" then
-    -- Fallback for transitions that have no loading screen (e.g. within-zone
+    -- Fallback for transitions with no loading screen (e.g. within-zone
     -- teleports). LOADING_SCREEN_DISABLED covers login, reload, and zone
-    -- transitions that show a loading screen, so this is a safety net only.
+    -- transitions that show a loading screen.
     local isLogin, isReload = ...
     if not isLogin and not isReload then
       C_Timer.After(1, RefreshDisplay)
