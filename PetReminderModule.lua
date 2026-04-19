@@ -230,7 +230,7 @@ local function UpdateLabelText()
 end
 
 local function RefreshDisplay()
-  if not previewMode and not ShouldWarn() then
+  if not previewMode and (not ShouldWarn() or IsMounted()) then
     if container then container:Hide() end
     StopEffect()
     return
@@ -384,6 +384,7 @@ function PetReminderModule.RegisterEvents(frame)
   frame:RegisterEvent("UNIT_PET")                    -- pet summoned or dismissed
   frame:RegisterEvent("PLAYER_ENTERING_WORLD")
   frame:RegisterEvent("LOADING_SCREEN_DISABLED")     -- world fully visible; safe to query pet unit
+  frame:RegisterEvent("PLAYER_MOUNT_DISPLAY_CHANGED") -- suppress warning while mounted; re-check on land
   frame:RegisterEvent("PLAYER_REGEN_DISABLED")       -- swap to combat message text
   frame:RegisterEvent("PLAYER_REGEN_ENABLED")        -- pet may have died; swap text back
   frame:RegisterEvent("PLAYER_SPECIALIZATION_CHANGED")
@@ -405,6 +406,12 @@ function PetReminderModule.OnEvent(event, ...)
   elseif event == "PLAYER_SPECIALIZATION_CHANGED" then
     local unitID = ...
     if unitID ~= "player" then return end
+    RefreshDisplay()
+
+  elseif event == "PLAYER_MOUNT_DISPLAY_CHANGED" then
+    -- Fires on mount and dismount. While mounted the IsMounted() check in
+    -- RefreshDisplay suppresses the warning. On landing, re-check so the
+    -- warning shows immediately if the pet didn't return.
     RefreshDisplay()
 
   elseif event == "PLAYER_REGEN_DISABLED" or event == "PLAYER_REGEN_ENABLED" then
