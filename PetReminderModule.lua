@@ -380,14 +380,14 @@ end
 
 function PetReminderModule.RegisterEvents(frame)
   if not isEligibleClass then return end
-  frame:RegisterUnitEvent("UNIT_DIED", "pet")              -- pet death → play sound
-  frame:RegisterUnitEvent("UNIT_PET", "player")            -- pet summoned or dismissed
+  frame:RegisterUnitEvent("UNIT_DIED", "pet")        -- pet death → play sound
+  frame:RegisterEvent("UNIT_PET")                    -- pet summoned or dismissed
   frame:RegisterEvent("PLAYER_ENTERING_WORLD")
-  frame:RegisterEvent("LOADING_SCREEN_DISABLED")           -- world fully visible; safe to query pet unit
-  frame:RegisterEvent("PLAYER_MOUNT_DISPLAY_CHANGED")      -- suppress warning while mounted; re-check on land
-  frame:RegisterEvent("PLAYER_REGEN_DISABLED")             -- swap to combat message text
-  frame:RegisterEvent("PLAYER_REGEN_ENABLED")              -- pet may have died; swap text back
-  frame:RegisterUnitEvent("PLAYER_SPECIALIZATION_CHANGED", "player")
+  frame:RegisterEvent("LOADING_SCREEN_DISABLED")     -- world fully visible; safe to query pet unit
+  frame:RegisterEvent("PLAYER_MOUNT_DISPLAY_CHANGED") -- suppress warning while mounted; re-check on land
+  frame:RegisterEvent("PLAYER_REGEN_DISABLED")       -- swap to combat message text
+  frame:RegisterEvent("PLAYER_REGEN_ENABLED")        -- pet may have died; swap text back
+  frame:RegisterEvent("PLAYER_SPECIALIZATION_CHANGED")
 end
 
 function PetReminderModule.OnEvent(event, ...)
@@ -399,11 +399,14 @@ function PetReminderModule.OnEvent(event, ...)
     RefreshDisplay()  -- show the warning immediately
 
   elseif event == "UNIT_PET" then
-    -- Delay so UnitExists("pet") reflects the final state before we check.
-    -- UNIT_PET can fire while the pet unit still exists during transitions.
+    local unitID = ...
+    print("|cffffcc00PetReminder UNIT_PET:|r unitID=" .. tostring(unitID) .. " HasPet=" .. tostring(HasPet()))
+    if unitID ~= "player" then return end
     C_Timer.After(0.2, RefreshDisplay)
 
   elseif event == "PLAYER_SPECIALIZATION_CHANGED" then
+    local unitID = ...
+    if unitID ~= "player" then return end
     RefreshDisplay()
 
   elseif event == "PLAYER_MOUNT_DISPLAY_CHANGED" then
