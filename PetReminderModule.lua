@@ -373,7 +373,9 @@ function PetReminderModule.Initialize()
 
   BuildContainer()
   PetReminderModule.RefreshLabel()
-  RefreshDisplay()
+  -- Do NOT call RefreshDisplay here: pet unit data is not available at
+  -- PLAYER_LOGIN. The frame starts hidden; PLAYER_ENTERING_WORLD drives
+  -- the first real check via the login poll.
 end
 
 function PetReminderModule.RegisterEvents(frame)
@@ -412,17 +414,14 @@ function PetReminderModule.OnEvent(event, ...)
     RefreshDisplay()
 
   elseif event == "LOADING_SCREEN_DISABLED" then
-    -- World is rendered but pet unit data arrives at an unpredictable time.
-    -- Poll repeatedly until the pet is confirmed or the window expires.
+    -- Additional trigger for normal login/reload/zone transitions.
     StartLoginPoll()
 
   elseif event == "PLAYER_ENTERING_WORLD" then
-    -- Fallback for transitions with no loading screen (e.g. within-zone
-    -- teleports). LOADING_SCREEN_DISABLED covers login, reload, and zone
-    -- transitions that show a loading screen.
-    local isLogin, isReload = ...
-    if not isLogin and not isReload then
-      C_Timer.After(1, RefreshDisplay)
-    end
+    -- Always start the poll here. New characters may skip the normal loading
+    -- screen flow (intro cinematics, phased starter zones) so
+    -- LOADING_SCREEN_DISABLED may never fire. PLAYER_ENTERING_WORLD always
+    -- fires regardless of how the character enters the world.
+    StartLoginPoll()
   end
 end
