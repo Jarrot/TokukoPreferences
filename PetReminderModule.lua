@@ -401,9 +401,11 @@ function PetReminderModule.OnEvent(event, ...)
   elseif event == "UNIT_PET" then
     local unitID = ...
     if unitID ~= "player" then return end
-    -- Delay so UnitExists("pet") reflects the final state before we check.
-    -- UNIT_PET can fire while the pet unit still exists during transitions.
-    C_Timer.After(0.2, RefreshDisplay)
+    C_Timer.After(0.2, function()
+      print(string.format("|cffffcc00PetReminder:|r ShouldWarn=%s HasPet=%s IsMounted=%s container=%s",
+        tostring(ShouldWarn()), tostring(HasPet()), tostring(IsMounted()), tostring(container ~= nil)))
+      RefreshDisplay()
+    end)
 
   elseif event == "PLAYER_SPECIALIZATION_CHANGED" then
     local unitID = ...
