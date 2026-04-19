@@ -91,26 +91,6 @@ local db              = nil
 local previewMode     = false
 
 -- ===============================
--- Login Poll
--- ===============================
-
--- After a loading screen, pet unit data becomes available at an unpredictable
--- time. Poll every 0.5s for up to 15s, refreshing the display each tick.
--- Stops early once the pet is confirmed present.
-local function StartLoginPoll()
-  if loginPollHandle then loginPollHandle:Cancel(); loginPollHandle = nil end
-  local elapsed = 0
-  loginPollHandle = C_Timer.NewTicker(0.5, function()
-    elapsed = elapsed + 0.5
-    RefreshDisplay()
-    if HasPet() or elapsed >= 15 then
-      loginPollHandle:Cancel()
-      loginPollHandle = nil
-    end
-  end)
-end
-
--- ===============================
 -- Sound
 -- ===============================
 
@@ -263,6 +243,26 @@ local function RefreshDisplay()
     container:Show()
     StartEffect()
   end
+end
+
+-- ===============================
+-- Login Poll
+-- ===============================
+
+-- After a loading screen, pet unit data becomes available at an unpredictable
+-- time. Poll every 0.5s for up to 15s, refreshing the display each tick.
+-- Stops early once the pet is confirmed present.
+local function StartLoginPoll()
+  if loginPollHandle then loginPollHandle:Cancel(); loginPollHandle = nil end
+  local elapsed = 0
+  loginPollHandle = C_Timer.NewTicker(0.5, function()
+    elapsed = elapsed + 0.5
+    RefreshDisplay()
+    if HasPet() or elapsed >= 15 then
+      loginPollHandle:Cancel()
+      loginPollHandle = nil
+    end
+  end)
 end
 
 -- ===============================
