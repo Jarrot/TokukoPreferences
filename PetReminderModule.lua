@@ -391,6 +391,9 @@ function PetReminderModule.RegisterEvents(frame)
 end
 
 function PetReminderModule.OnEvent(event, ...)
+  if event == "UNIT_PET" then
+    print("|cffffcc00PetReminder:|r OnEvent reached, db=" .. tostring(db ~= nil))
+  end
   if not db then return end
 
   if event == "UNIT_DIED" then
