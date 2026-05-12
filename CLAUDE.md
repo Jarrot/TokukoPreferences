@@ -43,10 +43,17 @@ Embeds Details! windows into `RightChatPanel`. Key geometry:
 ### Details! internals patched on embed
 - `frame.titleBar:Hide()` — hides title bar chrome
 - `frame.border:Hide()` — hides rounded corner border (extends outside frame bounds)
-- `frame.floatingframe:Hide()` — hides extra chrome (also a separate bar-display sibling frame)
-- `frame.isLocked = true` — locks window
+- `frame.floatingframe:Hide()` — hides extra chrome; called in `PositionFrames()` if the field exists
+- `inst:LockInstance(true/false)` — locks/unlocks via Details' own API; properly updates the lock button and resize handles (do NOT set `frame.isLocked` directly)
 - `frame.BoxBarrasAltura` — internal bar container height
 - `frame._instance.db.width/height` — saved dimensions
+
+### Chrome suppression
+`TryHideChrome(frame)` hides `titleBar`, `border`, and any child named `*UpFrame*` (the toolbar button containers that appear on mouseover). Called on embed and after `ShowWindow()` (which restores chrome).
+
+`HookChromeHide(frame)` appends an `OnEnter` hook so whenever Details re-shows its `UpFrame` toolbar on hover, it is immediately hidden again. Idempotent via `frame.__tpChromeHooked`. Wire this after every `ShowWindow()` call.
+
+`SetMouseRecursive(frame, enabled)` — recursively enables/disables mouse on a frame and all its descendants via `GetChildren()`. Needed because `Details_GumpFrame1` (windowBackgroundDisplay) is a grandchild of DetailsBaseFrame and has `OnEnter`/`OnLeave` scripts that intercept clicks even when the frame is invisible.
 
 ### Details! frame architecture (confirmed via /tpscan)
 `DetailsBaseFrame1` is the chrome container (32 direct children, all LOW strata). The actual visible content is in **separate sibling frames** that Details! positions independently:
@@ -55,12 +62,17 @@ Embeds Details! windows into `RightChatPanel`. Key geometry:
 - `inst.bgframe` = `Details_WindowFrame1` — IS a child of DetailsBaseFrame1
 - `frame.floatingframe` = nil on the frame; `inst.floatingframe` = `DetailsInstance1BorderHolder` (0x0, just an anchor)
 
-`frame:Hide()` is counteracted by Details!' own scripts. `SetAlpha` is used instead — sticks because `Show()` does not reset alpha. Must apply to base frame AND `inst.rowframe` + `inst.windowBackgroundDisplay`.
+For hide/show of the embedded meters (combatOnly mode, right-click toggle): use `inst:HideWindow()` / `inst:ShowWindow()` — Details' own API that properly manages `inst.ativa` so Details won't re-show on combat events. After `ShowWindow()`, re-call `TryHideChrome()` and `PositionFrames()` since `ShowWindow()` resets geometry and chrome. `SetAlpha` is only used during unembed restoration.
 
 ### Combat handling
 - `embedPending` — if embed attempted in combat, retries on `PLAYER_REGEN_ENABLED`
 - `combatOnly` — hides/shows meters via `SetMetersVisible()`, does NOT unembed/re-embed
 - Right-click `>` button — calls `SetMetersVisible()` to hide/show, not detach
+
+### Post-load / resurrection rehide
+`RehideEmbedded(delay)` — schedules a `C_Timer.After` to re-hide chrome and reposition after Details restores its own state. Two paths:
+- `PLAYER_ENTERING_WORLD` (loading screen): 4s delay — Details needs time to fully restore after a load screen
+- `PLAYER_ALIVE` (in-place res: battle res, Soulstone, Ankh): 1.5s delay — no loading screen, but Details may still restore its chrome
 
 ### Public API
 - `EmbedModule.Toggle()` — embed/unembed
