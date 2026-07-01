@@ -85,12 +85,7 @@ local function InsertElvUIOptions()
         desc = "Embed Details! into ElvUI's right chat panel.\n/tpembed to toggle. Right-click > to hide/show.",
         get  = function() return db.Embed.enabled end,
         set  = function(_, v)
-          db.Embed.enabled = v
-          if v and not TokukoP.modules.Embed.IsEmbedded() then
-            TokukoP.modules.Embed.Toggle()
-          elseif not v and TokukoP.modules.Embed.IsEmbedded() then
-            TokukoP.modules.Embed.Toggle()
-          end
+          TokukoP.modules.Embed.SetEnabled(v)
         end,
       },
       embedDual = {
@@ -98,14 +93,17 @@ local function InsertElvUIOptions()
         name = "Dual Window (left + right)",
         desc = "Embed two Details! windows side by side.",
         get  = function() return db.Embed.dualEmbed end,
-        set  = function(_, v) db.Embed.dualEmbed = v end,
+        set  = function(_, v)
+          db.Embed.dualEmbed = v
+          TokukoP.modules.Embed.Reapply()
+        end,
       },
       embedCombatOnly = {
         order = 13, type = "toggle",
         name = "Hide Out of Combat",
         desc = "Hides the meter windows when out of combat, shows them in combat. Meters stay embedded.",
         get  = function() return db.Embed.combatOnly end,
-        set  = function(_, v) db.Embed.combatOnly = v end,
+        set  = function(_, v) TokukoP.modules.Embed.SetCombatOnly(v) end,
       },
       embedWindowBreak = {
         order = 14, type = "description", name = "", width = "full",
@@ -115,21 +113,30 @@ local function InsertElvUIOptions()
         name = "Split Ratio (left %)",
         min = 20, max = 80, step = 1,
         get  = function() return math.floor((db.Embed.splitRatio or 0.5) * 100) end,
-        set  = function(_, v) db.Embed.splitRatio = v / 100 end,
+        set  = function(_, v)
+          db.Embed.splitRatio = v / 100
+          TokukoP.modules.Embed.Reposition()
+        end,
       },
       embedWindow1 = {
         order = 16, type = "range",
         name = "Window #1  (left / single)",
         min = 1, max = 5, step = 1,
         get  = function() return db.Embed.window1 or 1 end,
-        set  = function(_, v) db.Embed.window1 = v end,
+        set  = function(_, v)
+          db.Embed.window1 = v
+          TokukoP.modules.Embed.Reapply()
+        end,
       },
       embedWindow2 = {
         order = 17, type = "range",
         name = "Window #2  (right)",
         min = 1, max = 5, step = 1,
         get  = function() return db.Embed.window2 or 2 end,
-        set  = function(_, v) db.Embed.window2 = v end,
+        set  = function(_, v)
+          db.Embed.window2 = v
+          TokukoP.modules.Embed.Reapply()
+        end,
       },
 
       -- ── Healer Mana ───────────────────────────────────────

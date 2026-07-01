@@ -461,6 +461,51 @@ end
 
 function EmbedModule.IsEmbedded() return embedded end
 
+-- Enable/disable the whole feature. Called by the options-panel toggle.
+-- Unlike Toggle() (guarded by the enabled flag so /tpembed is a no-op when the
+-- module is off), this drives embed state directly, so the options toggle
+-- applies live instead of needing a /reload.
+function EmbedModule.SetEnabled(v)
+  TokukoPDB.Embed.enabled = v
+  if v then
+    if not embedded then DoEmbed() end
+    -- Respect "Hide Out of Combat" so enabling out of combat doesn't flash the meters.
+    if embedded and TokukoPDB.Embed.combatOnly and not InCombatLockdown() then
+      SetMetersVisible(false)
+    end
+  else
+    if embedded then DoUnembed() end
+    embedPending = false
+  end
+end
+
+-- Re-embed with the current window/dual settings. Called when those options
+-- change so they apply live. No-op if not currently embedded.
+function EmbedModule.Reapply()
+  if not embedded then return end
+  DoUnembed()
+  DoEmbed()
+  if embedded and TokukoPDB.Embed.combatOnly and not InCombatLockdown() then
+    SetMetersVisible(false)
+  end
+end
+
+-- Re-run positioning only (e.g. the split-ratio slider). No re-embed needed.
+function EmbedModule.Reposition()
+  if embedded then PositionFrames() end
+end
+
+-- Apply the "Hide Out of Combat" toggle live.
+function EmbedModule.SetCombatOnly(v)
+  TokukoPDB.Embed.combatOnly = v
+  if not embedded then return end
+  if v then
+    if not InCombatLockdown() then SetMetersVisible(false) end
+  else
+    SetMetersVisible(true)
+  end
+end
+
 -- ===============================
 -- Combat Visibility
 -- ===============================

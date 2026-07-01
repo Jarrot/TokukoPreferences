@@ -5,18 +5,21 @@ A modular WoW addon for **Midnight 12.x** built around ElvUI. Written in Lua.
 ## Project Structure
 
 ```
-Core.lua           — namespace (TokukoP), SavedVariables (TokukoPDB), PLAYER_LOGIN init
-DrinkingModule.lua — eating/drinking announcements to group chat
-TooltipModule.lua  — ElvUI tooltip cursor anchor switching
-EmbedModule.lua    — Details! embed into ElvUI right chat panel (main module)
-Settings.lua       — ElvUI AceConfig panel (/ec → Plugins → TokukoPreferences)
-DebugModule.lua    — optional debug commands, commented out in TOC by default
+Core.lua              — namespace (TokukoP), SavedVariables (TokukoPDB), PLAYER_LOGIN init
+DrinkingModule.lua    — eating/drinking announcements to group chat
+TooltipModule.lua     — ElvUI tooltip cursor anchor switching
+EmbedModule.lua       — Details! embed into ElvUI right chat panel (main module)
+HealerManaModule.lua  — movable overlay listing group/raid healers sorted by mana (lowest first)
+CombatResModule.lua   — movable icons for battle-res charges + Shaman Reincarnation cooldown
+PetReminderModule.lua — flashing warning when a Hunter/Warlock/Unholy DK has no active pet
+Settings.lua          — ElvUI AceConfig panel (/ec → Plugins → TokukoPreferences)
+DebugModule.lua       — optional debug commands, commented out in TOC by default
 ```
 
 ## Key Globals
 
 - `TokukoP` — addon namespace, `TokukoP.modules` holds all module references
-- `TokukoPDB` — SavedVariables, sub-tables: `Drinking`, `Embed`, `Tooltip`
+- `TokukoPDB` — SavedVariables, sub-tables: `Drinking`, `Embed`, `Tooltip`, `HealerMana`, `CombatRes`, `PetReminder`
 - `RightChatPanel` — ElvUI's right chat panel frame (confirmed global name)
 - `RightChatDataPanel` — ElvUI's data bar at bottom of right panel
 - `DetailsBaseFrame1/2` — Details! window frames
@@ -75,7 +78,11 @@ For hide/show of the embedded meters (combatOnly mode, right-click toggle): use 
 - `PLAYER_ALIVE` (in-place res: battle res, Soulstone, Ankh): 1.5s delay — no loading screen, but Details may still restore its chrome
 
 ### Public API
-- `EmbedModule.Toggle()` — embed/unembed
+- `EmbedModule.Toggle()` — embed/unembed (guarded by `enabled`; used by `/tpembed`)
+- `EmbedModule.SetEnabled(v)` — enable/disable the feature live; drives embed state directly (used by the options toggle, so no `/reload` needed). Do NOT route the options toggle through `Toggle()` — setting `enabled=false` first makes `Toggle()` early-return before it can unembed.
+- `EmbedModule.Reapply()` — re-embed with current window/dual settings (used when those options change)
+- `EmbedModule.Reposition()` — re-run `PositionFrames()` only (used by the split-ratio slider)
+- `EmbedModule.SetCombatOnly(v)` — apply "Hide Out of Combat" live
 - `EmbedModule.IsEmbedded()` — returns embedded state
 - `EmbedModule.PrintDebug()` — called by DebugModule for /tpdebug
 

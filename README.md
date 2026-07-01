@@ -39,6 +39,15 @@ Two movable icons showing battle resurrection charges and Shaman Reincarnation c
 - CooldownFrameTemplate sweep on both icons
 - Optional ElvUI icon style (backdrop border + tighter texture crop)
 
+### Pet Reminder
+Flashing on-screen warning when a Hunter, Warlock, or Unholy Death Knight has no active pet.
+
+- Only active for eligible classes/specs (Hunters, Warlocks, Unholy DKs) — silent for everyone else
+- Movable message (drag to reposition) with configurable font, size, and colour
+- Visual effects: pulse, shake, bounce, scale, or colour flash
+- Optional warning sound, and a separate combat-only message (e.g. "SUMMON YOUR PET")
+- Automatically hides while mounted or when a pet is present
+
 ### Tooltip
 Anchors the tooltip to your cursor when out of combat, snapping to the fixed ElvUI anchor position during combat.
 
