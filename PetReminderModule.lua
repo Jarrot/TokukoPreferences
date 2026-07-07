@@ -89,6 +89,7 @@ local isEligibleClass = false
 local isDragging      = false
 local db              = nil
 local previewMode     = false
+local petWasPresent   = false  -- tracks last-known pet state to detect the moment it's lost
 
 -- ===============================
 -- Sound
@@ -230,13 +231,25 @@ local function UpdateLabelText()
 end
 
 local function RefreshDisplay()
+  local hasPet = HasPet()
+
+  -- Play the warning sound once, on the transition from having a pet to no
+  -- longer having one (pet died or was dismissed), for eligible classes.
+  -- In 12.x we can't detect this via UNIT_DIED's unit arg — it's a secret
+  -- value and comparing it taints execution — so we detect the loss by state
+  -- change instead of by identifying which unit died.
+  if not previewMode and ShouldWarn() and petWasPresent and not hasPet then
+    PlayWarningSound()
+  end
+  petWasPresent = hasPet
+
   if not previewMode and (not ShouldWarn() or IsMounted()) then
     if container then container:Hide() end
     StopEffect()
     return
   end
   UpdateLabelText()
-  if not previewMode and HasPet() then
+  if not previewMode and hasPet then
     container:Hide()
     StopEffect()
   else
@@ -393,9 +406,9 @@ function PetReminderModule.OnEvent(event, ...)
   if not db then return end
 
   if event == "UNIT_DIED" then
-    local unitID = ...
-    if unitID ~= "pet" then return end
-    PlayWarningSound()
+    -- 12.x: UNIT_DIED's unit arg is a secret value — reading/comparing it
+    -- taints execution and errors. Don't touch it; just re-check our own pet.
+    -- RefreshDisplay plays the warning sound on the transition to "no pet".
     RefreshDisplay()
 
   elseif event == "UNIT_PET" then
