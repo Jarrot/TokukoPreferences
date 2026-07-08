@@ -118,6 +118,16 @@ local function HasPet()
   return UnitExists("pet") and not UnitIsDeadOrGhost("pet")
 end
 
+-- True when the player is mounted, in a vehicle, or on a taxi/transport — states
+-- where having no pet is expected, so the warning (and its sound) is suppressed.
+-- The NPC-dialogue "transport to a platform" cases use the vehicle system, so
+-- UnitInVehicle covers those too.
+local function InSuppressedState()
+  return IsMounted()
+      or UnitInVehicle("player")
+      or UnitOnTaxi("player")
+end
+
 local function ShouldWarn()
   if not db or not db.enabled then return false end
   local _, classFile = UnitClass("player")
@@ -238,12 +248,13 @@ local function RefreshDisplay()
   -- In 12.x we can't detect this via UNIT_DIED's unit arg — it's a secret
   -- value and comparing it taints execution — so we detect the loss by state
   -- change instead of by identifying which unit died.
-  if not previewMode and ShouldWarn() and petWasPresent and not hasPet then
+  if not previewMode and ShouldWarn() and not InSuppressedState()
+     and petWasPresent and not hasPet then
     PlayWarningSound()
   end
   petWasPresent = hasPet
 
-  if not previewMode and (not ShouldWarn() or IsMounted()) then
+  if not previewMode and (not ShouldWarn() or InSuppressedState()) then
     if container then container:Hide() end
     StopEffect()
     return
@@ -400,6 +411,10 @@ function PetReminderModule.RegisterEvents(frame)
   frame:RegisterEvent("PLAYER_REGEN_DISABLED")       -- swap to combat message text
   frame:RegisterEvent("PLAYER_REGEN_ENABLED")        -- pet may have died; swap text back
   frame:RegisterEvent("PLAYER_SPECIALIZATION_CHANGED")
+  frame:RegisterEvent("UNIT_ENTERED_VEHICLE")        -- hide warning while riding a vehicle
+  frame:RegisterEvent("UNIT_EXITED_VEHICLE")
+  frame:RegisterEvent("PLAYER_CONTROL_LOST")         -- taxi / transport platforms / loss of control
+  frame:RegisterEvent("PLAYER_CONTROL_GAINED")
 end
 
 function PetReminderModule.OnEvent(event, ...)
@@ -419,6 +434,13 @@ function PetReminderModule.OnEvent(event, ...)
   elseif event == "PLAYER_SPECIALIZATION_CHANGED" then
     local unitID = ...
     if unitID ~= "player" then return end
+    RefreshDisplay()
+
+  elseif event == "UNIT_ENTERED_VEHICLE" or event == "UNIT_EXITED_VEHICLE"
+      or event == "PLAYER_CONTROL_LOST"  or event == "PLAYER_CONTROL_GAINED" then
+    -- Entered/left a vehicle or transport (or lost/regained control) —
+    -- re-evaluate so the warning hides while riding and returns afterwards.
+    -- These unit args aren't read (safe re: 12.x secret values).
     RefreshDisplay()
 
   elseif event == "PLAYER_REGEN_DISABLED" or event == "PLAYER_REGEN_ENABLED" then
