@@ -593,35 +593,43 @@ local function BuildFallbackWindow()
     function() return TokukoPDB.Drinking.completeMessage end,
     function(v) TokukoPDB.Drinking.completeMessage = v end, y); y = y - 44
 
-  MakeDivider(f, y); y = y - 14
-  MakeHeader(f, "Damage Meter Embed", y); y = y - 26
-  MakeCheckbox(f, "Enable Embed", nil,
-    function() return TokukoPDB.Embed.enabled end,
-    function(v)
-      TokukoPDB.Embed.enabled = v
-      if v and not TokukoP.modules.Embed.IsEmbedded() then TokukoP.modules.Embed.Toggle()
-      elseif not v and TokukoP.modules.Embed.IsEmbedded() then TokukoP.modules.Embed.Toggle() end
-    end, y); y = y - 28
-  MakeCheckbox(f, "Dual Window Embed", nil,
-    function() return TokukoPDB.Embed.dualEmbed end,
-    function(v) TokukoPDB.Embed.dualEmbed = v end, y); y = y - 28
-  MakeCheckbox(f, "Hide Out of Combat", nil,
-    function() return TokukoPDB.Embed.combatOnly end,
-    function(v) TokukoPDB.Embed.combatOnly = v end, y); y = y - 28
+  -- Embed and Tooltip are ElvUI-only modules (see their HOSTS tables). On a
+  -- non-ElvUI host they are never initialized, so TokukoPDB.Embed /
+  -- TokukoPDB.Tooltip do not exist and these rows would error on the first
+  -- getValue. Only draw them when the module is actually active.
+  if TokukoP.activeModules and TokukoP.activeModules.Embed then
+    MakeDivider(f, y); y = y - 14
+    MakeHeader(f, "Damage Meter Embed", y); y = y - 26
+    MakeCheckbox(f, "Enable Embed", nil,
+      function() return TokukoPDB.Embed.enabled end,
+      function(v)
+        TokukoPDB.Embed.enabled = v
+        if v and not TokukoP.modules.Embed.IsEmbedded() then TokukoP.modules.Embed.Toggle()
+        elseif not v and TokukoP.modules.Embed.IsEmbedded() then TokukoP.modules.Embed.Toggle() end
+      end, y); y = y - 28
+    MakeCheckbox(f, "Dual Window Embed", nil,
+      function() return TokukoPDB.Embed.dualEmbed end,
+      function(v) TokukoPDB.Embed.dualEmbed = v end, y); y = y - 28
+    MakeCheckbox(f, "Hide Out of Combat", nil,
+      function() return TokukoPDB.Embed.combatOnly end,
+      function(v) TokukoPDB.Embed.combatOnly = v end, y); y = y - 28
+  end
 
-  MakeDivider(f, y); y = y - 14
-  MakeHeader(f, "Tooltip", y); y = y - 26
-  MakeCheckbox(f, "Cursor Anchor Out of Combat", nil,
-    function() return TokukoPDB.Tooltip and TokukoPDB.Tooltip.enabled end,
-    function(v)
-      TokukoPDB.Tooltip.enabled = v
-      if v and ElvUI then
-        local E = GetE()
-        if E and E.db and E.db.tooltip then
-          E.db.tooltip.cursorAnchor = not InCombatLockdown()
+  if TokukoP.activeModules and TokukoP.activeModules.Tooltip then
+    MakeDivider(f, y); y = y - 14
+    MakeHeader(f, "Tooltip", y); y = y - 26
+    MakeCheckbox(f, "Cursor Anchor Out of Combat", nil,
+      function() return TokukoPDB.Tooltip and TokukoPDB.Tooltip.enabled end,
+      function(v)
+        TokukoPDB.Tooltip.enabled = v
+        if v and ElvUI then
+          local E = GetE()
+          if E and E.db and E.db.tooltip then
+            E.db.tooltip.cursorAnchor = not InCombatLockdown()
+          end
         end
-      end
-    end, y)
+      end, y)
+  end
 
   return f
 end

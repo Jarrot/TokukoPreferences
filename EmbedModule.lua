@@ -8,6 +8,12 @@ local TokukoP = TokukoP
 local EmbedModule = {}
 TokukoP.modules.Embed = EmbedModule
 
+-- ElvUI only: the whole module is built on ElvUI's RightChatPanel /
+-- RightChatDataPanel geometry, which has no equivalent in other suites.
+-- EllesmereUI gives each chat frame its own backdrop instead of a fixed
+-- left/right panel pair, so this needs a rewrite rather than a port.
+EmbedModule.HOSTS = { elvui = true }
+
 -- ===============================
 -- Module Defaults
 -- ===============================

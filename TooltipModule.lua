@@ -8,6 +8,12 @@ local TokukoP = TokukoP
 local TooltipModule = {}
 TokukoP.modules.Tooltip = TooltipModule
 
+-- ElvUI only: drives E.db.tooltip.cursorAnchor directly. EllesmereUI has
+-- its own equivalent (EllesmereUIDB.tooltipAnchorCursor +
+-- EllesmereUI._applyTooltipCursorAnchor) but no combat-based switching,
+-- so an Ellesmere path would be new work, not a rename.
+TooltipModule.HOSTS = { elvui = true }
+
 -- ===============================
 -- Module Defaults
 -- ===============================

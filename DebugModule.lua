@@ -11,8 +11,8 @@ local TokukoP = TokukoP
 -- ===============================
 SLASH_TPDEBUG1 = "/tpdebug"
 SlashCmdList["TPDEBUG"] = function()
-  local E = TokukoP.modules.Embed
-  if not E then print("TokukoP: EmbedModule not loaded."); return end
+  local E = TokukoP.activeModules and TokukoP.activeModules.Embed
+  if not E then print("TokukoP: EmbedModule not active on this UI host."); return end
   E.PrintDebug()
 end
 
