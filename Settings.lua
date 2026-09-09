@@ -456,16 +456,11 @@ local function InsertElvUIOptions()
       tooltipEnabled = {
         order = 21, type = "toggle",
         name = "|cff00ff00Enable|r",
-        desc = "Tooltip follows cursor when out of combat.\nSnaps to fixed ElvUI anchor position in combat.",
+        desc = "Tooltip follows cursor when out of combat.\nSnaps to the fixed anchor position in combat.",
         get  = function() return db.Tooltip and db.Tooltip.enabled end,
         set  = function(_, v)
           db.Tooltip.enabled = v
-          if v and ElvUI then
-            local E2 = GetE()
-            if E2 and E2.db and E2.db.tooltip then
-              E2.db.tooltip.cursorAnchor = not InCombatLockdown()
-            end
-          end
+          if v then TokukoP.modules.Tooltip.ApplyNow() end
         end,
       },
       tooltipDesc = {
@@ -622,12 +617,7 @@ local function BuildFallbackWindow()
       function() return TokukoPDB.Tooltip and TokukoPDB.Tooltip.enabled end,
       function(v)
         TokukoPDB.Tooltip.enabled = v
-        if v and ElvUI then
-          local E = GetE()
-          if E and E.db and E.db.tooltip then
-            E.db.tooltip.cursorAnchor = not InCombatLockdown()
-          end
-        end
+        if v then TokukoP.modules.Tooltip.ApplyNow() end
       end, y)
   end
 
