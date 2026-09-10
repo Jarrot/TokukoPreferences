@@ -612,6 +612,11 @@ local function MakeDropdown(parent, label, tooltip, values, sorting, getValue, s
 
   btn:SetScript("OnClick", function(self)
     MenuUtil.CreateContextMenu(self, function(_, rootDescription)
+      -- The font lists come from LibSharedMedia and run to 100+ entries, which
+      -- without this renders as a single full-screen column. Cap the height and
+      -- let the menu scroll; a short list under the cap is unaffected.
+      if rootDescription.SetScrollMode then rootDescription:SetScrollMode(380) end
+
       local order = sorting
       if not order then
         order = {}
