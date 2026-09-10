@@ -545,16 +545,163 @@ end
 local function MakeDivider(parent, yOffset)
   local line = parent:CreateTexture(nil, "ARTWORK")
   line:SetColorTexture(0.4, 0.4, 0.4, 0.8)
-  line:SetSize(380, 1)
+  line:SetSize(348, 1)  -- fits inside the scrolling content area
   line:SetPoint("TOPLEFT", 14, yOffset)
   return line
+end
+
+-- Slider. Plain CreateFrame("Slider") rather than a named template: the frame
+-- type is stable (Details, DBM and Baganator all build sliders this way on
+-- 12.x) while template names are not.
+local function MakeSlider(parent, label, tooltip, minV, maxV, step, getValue, setValue, yOffset, fmt)
+  fmt = fmt or "%.0f"
+  local lbl = parent:CreateFontString(nil, "OVERLAY", "GameFontNormal")
+  lbl:SetPoint("TOPLEFT", 20, yOffset)
+
+  local sl = CreateFrame("Slider", nil, parent)
+  sl:SetPoint("TOPLEFT", 24, yOffset - 18)
+  sl:SetSize(230, 16)
+  sl:SetOrientation("HORIZONTAL")
+  sl:SetMinMaxValues(minV, maxV)
+  sl:SetValueStep(step)
+  sl:SetObeyStepOnDrag(true)
+  sl:SetThumbTexture("Interface\\Buttons\\UI-SliderBar-Button-Horizontal")
+
+  local track = sl:CreateTexture(nil, "BACKGROUND")
+  track:SetColorTexture(0, 0, 0, 0.5)
+  track:SetHeight(5)
+  track:SetPoint("LEFT", 2, 0)
+  track:SetPoint("RIGHT", -2, 0)
+
+  local function Relabel(v) lbl:SetText(label .. ": |cffffffff" .. fmt:format(v) .. "|r") end
+
+  sl:SetValue(getValue())
+  Relabel(getValue())
+  sl:SetScript("OnValueChanged", function(self, v)
+    Relabel(v)
+    setValue(v)
+  end)
+  if tooltip then
+    sl:SetScript("OnEnter", function(self)
+      GameTooltip:SetOwner(self, "ANCHOR_RIGHT")
+      GameTooltip:SetText(tooltip, nil, nil, nil, nil, true)
+      GameTooltip:Show()
+    end)
+    sl:SetScript("OnLeave", function() GameTooltip:Hide() end)
+  end
+  return sl
+end
+
+-- Dropdown built on the modern menu system (MenuUtil + rootDescription), the
+-- same API EllesmereUI and DBM use on 12.x. UIDropDownMenu is legacy.
+local function MakeDropdown(parent, label, tooltip, values, sorting, getValue, setValue, yOffset, onChanged)
+  local lbl = parent:CreateFontString(nil, "OVERLAY", "GameFontNormal")
+  lbl:SetPoint("TOPLEFT", 20, yOffset)
+  lbl:SetText(label .. ":")
+
+  local btn = CreateFrame("Button", nil, parent, "UIPanelButtonTemplate")
+  btn:SetPoint("TOPLEFT", 24, yOffset - 18)
+  btn:SetSize(230, 22)
+  SkinBtn(btn)
+
+  local function CurrentText()
+    local key = getValue()
+    return (key ~= nil and values[key]) or "—"
+  end
+  btn:SetText(CurrentText())
+
+  btn:SetScript("OnClick", function(self)
+    MenuUtil.CreateContextMenu(self, function(_, rootDescription)
+      local order = sorting
+      if not order then
+        order = {}
+        for k in pairs(values) do table.insert(order, k) end
+        table.sort(order, function(a, b) return tostring(values[a]) < tostring(values[b]) end)
+      end
+      for _, key in ipairs(order) do
+        rootDescription:CreateRadio(
+          values[key],
+          function() return getValue() == key end,
+          function()
+            setValue(key)
+            btn:SetText(CurrentText())
+            if onChanged then onChanged() end
+          end)
+      end
+    end)
+  end)
+
+  if tooltip then
+    btn:SetScript("OnEnter", function(self)
+      GameTooltip:SetOwner(self, "ANCHOR_RIGHT")
+      GameTooltip:SetText(tooltip, nil, nil, nil, nil, true)
+      GameTooltip:Show()
+    end)
+    btn:SetScript("OnLeave", function() GameTooltip:Hide() end)
+  end
+  return btn
+end
+
+-- Colour swatch -> ColorPickerFrame:SetupColorPickerAndShow (the 10.2.5+ API;
+-- the old ColorPickerFrame.func globals are gone).
+local function MakeColorSwatch(parent, label, tooltip, getValue, setValue, yOffset)
+  local lbl = parent:CreateFontString(nil, "OVERLAY", "GameFontNormal")
+  lbl:SetPoint("TOPLEFT", 44, yOffset + 2)
+  lbl:SetText(label)
+
+  local btn = CreateFrame("Button", nil, parent)
+  btn:SetPoint("TOPLEFT", 20, yOffset)
+  btn:SetSize(18, 18)
+
+  local border = btn:CreateTexture(nil, "BORDER")
+  border:SetColorTexture(0.35, 0.35, 0.35, 1)
+  border:SetAllPoints()
+
+  local swatch = btn:CreateTexture(nil, "ARTWORK")
+  swatch:SetPoint("TOPLEFT", 1, -1)
+  swatch:SetPoint("BOTTOMRIGHT", -1, 1)
+
+  local function Refresh()
+    local c = getValue() or {}
+    swatch:SetColorTexture(c.r or 1, c.g or 1, c.b or 1, 1)
+  end
+  Refresh()
+
+  btn:SetScript("OnClick", function()
+    local c = getValue() or {}
+    local orig = { r = c.r or 1, g = c.g or 1, b = c.b or 1 }
+    local function apply()
+      local r, g, b = ColorPickerFrame:GetColorRGB()
+      setValue(r, g, b)
+      Refresh()
+    end
+    ColorPickerFrame:SetupColorPickerAndShow({
+      r = orig.r, g = orig.g, b = orig.b,
+      hasOpacity = false,
+      swatchFunc = apply,
+      cancelFunc = function()
+        setValue(orig.r, orig.g, orig.b)
+        Refresh()
+      end,
+    })
+  end)
+
+  if tooltip then
+    btn:SetScript("OnEnter", function(self)
+      GameTooltip:SetOwner(self, "ANCHOR_RIGHT")
+      GameTooltip:SetText(tooltip, nil, nil, nil, nil, true)
+      GameTooltip:Show()
+    end)
+    btn:SetScript("OnLeave", function() GameTooltip:Hide() end)
+  end
+  return btn
 end
 
 local settingsFrame = nil
 
 local function BuildFallbackWindow()
   local f = CreateFrame("Frame", "TokukoPSettingsFrame", UIParent, "BasicFrameTemplateWithInset")
-  f:SetSize(420, 480)
+  f:SetSize(420, 560)
   f:SetPoint("CENTER")
   f:SetMovable(true)
   f:EnableMouse(true)
@@ -569,57 +716,192 @@ local function BuildFallbackWindow()
   end)
   f:SetPropagateKeyboardInput(true)
 
-  local y = -34
+  -- Every module's options together are far taller than the window, so the
+  -- rows live on a scrolling child rather than on the frame itself.
+  local scroll = CreateFrame("ScrollFrame", nil, f, "UIPanelScrollFrameTemplate")
+  scroll:SetPoint("TOPLEFT", 8, -30)
+  scroll:SetPoint("BOTTOMRIGHT", -30, 8)
 
-  MakeHeader(f, "Drinking Announcements", y); y = y - 26
-  MakeCheckbox(f, "Enable Drinking Announcements", nil,
+  local c = CreateFrame("Frame", nil, scroll)
+  c:SetSize(376, 1)
+  scroll:SetScrollChild(c)
+
+  local active = TokukoP.activeModules or {}
+  local y = -4
+
+  MakeHeader(c, "Drinking Announcements", y); y = y - 26
+  MakeCheckbox(c, "Enable Drinking Announcements", nil,
     function() return TokukoPDB.Drinking.enabled end,
     function(v) TokukoPDB.Drinking.enabled = v end, y); y = y - 28
-  MakeCheckbox(f, "Only in Group / Instance", nil,
+  MakeCheckbox(c, "Only in Group / Instance", nil,
     function() return TokukoPDB.Drinking.onlyInGroup end,
     function(v) TokukoPDB.Drinking.onlyInGroup = v end, y); y = y - 28
-  MakeCheckbox(f, "Announce When Done", nil,
+  MakeCheckbox(c, "Announce When Done", nil,
     function() return TokukoPDB.Drinking.announceComplete end,
     function(v) TokukoPDB.Drinking.announceComplete = v end, y); y = y - 30
-  MakeEditBox(f, "Start Message:", nil,
+  MakeEditBox(c, "Start Message:", nil,
     function() return TokukoPDB.Drinking.message end,
     function(v) TokukoPDB.Drinking.message = v end, y); y = y - 52
-  MakeEditBox(f, "Complete Message:", nil,
+  MakeEditBox(c, "Complete Message:", nil,
     function() return TokukoPDB.Drinking.completeMessage end,
     function(v) TokukoPDB.Drinking.completeMessage = v end, y); y = y - 44
 
-  -- Embed and Tooltip are ElvUI-only modules (see their HOSTS tables). On a
-  -- non-ElvUI host they are never initialized, so TokukoPDB.Embed /
-  -- TokukoPDB.Tooltip do not exist and these rows would error on the first
-  -- getValue. Only draw them when the module is actually active.
-  if TokukoP.activeModules and TokukoP.activeModules.Embed then
-    MakeDivider(f, y); y = y - 14
-    MakeHeader(f, "Damage Meter Embed", y); y = y - 26
-    MakeCheckbox(f, "Enable Embed", nil,
+  -- Every section below is gated on the module actually being active for this
+  -- host: an inactive module never ran Initialize, so its TokukoPDB sub-table
+  -- does not exist and the first getValue would error.
+  if active.Embed then
+    MakeDivider(c, y); y = y - 14
+    MakeHeader(c, "Damage Meter Embed", y); y = y - 26
+    MakeCheckbox(c, "Enable Embed", nil,
       function() return TokukoPDB.Embed.enabled end,
       function(v)
         TokukoPDB.Embed.enabled = v
         if v and not TokukoP.modules.Embed.IsEmbedded() then TokukoP.modules.Embed.Toggle()
         elseif not v and TokukoP.modules.Embed.IsEmbedded() then TokukoP.modules.Embed.Toggle() end
       end, y); y = y - 28
-    MakeCheckbox(f, "Dual Window Embed", nil,
+    MakeCheckbox(c, "Dual Window Embed", nil,
       function() return TokukoPDB.Embed.dualEmbed end,
       function(v) TokukoPDB.Embed.dualEmbed = v end, y); y = y - 28
-    MakeCheckbox(f, "Hide Out of Combat", nil,
+    MakeCheckbox(c, "Hide Out of Combat", nil,
       function() return TokukoPDB.Embed.combatOnly end,
       function(v) TokukoPDB.Embed.combatOnly = v end, y); y = y - 28
   end
 
-  if TokukoP.activeModules and TokukoP.activeModules.Tooltip then
-    MakeDivider(f, y); y = y - 14
-    MakeHeader(f, "Tooltip", y); y = y - 26
-    MakeCheckbox(f, "Cursor Anchor Out of Combat", nil,
+  if active.HealerMana then
+    local HM = TokukoP.modules.HealerMana
+    MakeDivider(c, y); y = y - 14
+    MakeHeader(c, "Healer Mana Display", y); y = y - 26
+    MakeCheckbox(c, "Enable", nil,
+      function() return TokukoPDB.HealerMana.enabled end,
+      function(v) TokukoPDB.HealerMana.enabled = v; HM.RefreshDisplay() end, y); y = y - 28
+    MakeDropdown(c, "Display",
+      "What to show in the mana column.\nPercent: 93%\nAbsolute: 44.5k\nBoth: 93% 44.5k",
+      { percent = "Percent (%)", value = "Absolute (k)", both = "Both" },
+      { "percent", "value", "both" },
+      function() return TokukoPDB.HealerMana.displayMode or "percent" end,
+      function(v) TokukoPDB.HealerMana.displayMode = v end, y,
+      function() HM.RefreshDisplay() end); y = y - 44
+    MakeDropdown(c, "Font", nil, HM.FONT_VALUES, HM.FONT_SORTING,
+      function() return TokukoPDB.HealerMana.font end,
+      function(v) TokukoPDB.HealerMana.font = v end, y, function() HM.RefreshFont() end); y = y - 44
+    MakeSlider(c, "Font Size", nil, 8, 32, 1,
+      function() return TokukoPDB.HealerMana.fontSize end,
+      function(v) TokukoPDB.HealerMana.fontSize = v; HM.RefreshFont() end, y); y = y - 42
+    MakeCheckbox(c, "Use Class Colour", nil,
+      function() return TokukoPDB.HealerMana.useClassColor end,
+      function(v) TokukoPDB.HealerMana.useClassColor = v; HM.RefreshDisplay() end, y); y = y - 28
+    MakeColorSwatch(c, "Text Colour", nil,
+      function() return TokukoPDB.HealerMana.color end,
+      function(r, g, b)
+        local col = TokukoPDB.HealerMana.color
+        col.r, col.g, col.b = r, g, b
+        HM.RefreshDisplay()
+      end, y); y = y - 28
+    MakeSlider(c, "Text Alpha", nil, 0, 1, 0.05,
+      function() return TokukoPDB.HealerMana.textAlpha end,
+      function(v) TokukoPDB.HealerMana.textAlpha = v; HM.RefreshDisplay() end, y, "%.2f"); y = y - 42
+    MakeSlider(c, "Background Alpha", nil, 0, 1, 0.05,
+      function() return TokukoPDB.HealerMana.bgAlpha end,
+      function(v) TokukoPDB.HealerMana.bgAlpha = v; HM.RefreshBgAlpha() end, y, "%.2f"); y = y - 42
+    MakeCheckbox(c, "Locked", nil,
+      function() return TokukoPDB.HealerMana.locked end,
+      function(v) HM.SetLocked(v) end, y); y = y - 28
+    MakeCheckbox(c, "Grow Upwards", nil,
+      function() return TokukoPDB.HealerMana.growUp end,
+      function(v) TokukoPDB.HealerMana.growUp = v; HM.RefreshGrowDirection() end, y); y = y - 28
+  end
+
+  if active.CombatRes then
+    local CR = TokukoP.modules.CombatRes
+    MakeDivider(c, y); y = y - 14
+    MakeHeader(c, "Combat Res & Reincarnation", y); y = y - 26
+    MakeCheckbox(c, "Enable", nil,
+      function() return TokukoPDB.CombatRes.enabled end,
+      function(v) TokukoPDB.CombatRes.enabled = v; CR.RefreshDisplay() end, y); y = y - 28
+    MakeCheckbox(c, "Locked", nil,
+      function() return TokukoPDB.CombatRes.locked end,
+      function(v) CR.SetLocked(v) end, y); y = y - 28
+    MakeDropdown(c, "Font", nil, CR.FONT_VALUES, CR.FONT_SORTING,
+      function() return TokukoPDB.CombatRes.font end,
+      function(v) TokukoPDB.CombatRes.font = v end, y, function() CR.RefreshFonts() end); y = y - 44
+    MakeSlider(c, "Timer Font Size", nil, 8, 32, 1,
+      function() return TokukoPDB.CombatRes.timerFontSize end,
+      function(v) TokukoPDB.CombatRes.timerFontSize = v; CR.RefreshFonts() end, y); y = y - 42
+    MakeSlider(c, "Count Font Size", nil, 8, 32, 1,
+      function() return TokukoPDB.CombatRes.countFontSize end,
+      function(v) TokukoPDB.CombatRes.countFontSize = v; CR.RefreshFonts() end, y); y = y - 42
+    -- ElvUI's icon skin only exists on ElvUI; the module already falls back to
+    -- a plain crop elsewhere, so do not offer a dead toggle on other hosts.
+    if TokukoP.host == TokukoP.HOST_ELVUI then
+      MakeCheckbox(c, "ElvUI Icon Style", nil,
+        function() return TokukoPDB.CombatRes.elvuiIcons end,
+        function(v) TokukoPDB.CombatRes.elvuiIcons = v; CR.RebuildAndRefresh() end, y); y = y - 28
+    end
+    MakeCheckbox(c, "Content Only", nil,
+      function() return TokukoPDB.CombatRes.contentOnly end,
+      function(v) TokukoPDB.CombatRes.contentOnly = v; CR.RefreshDisplay() end, y); y = y - 28
+    MakeCheckbox(c, "Grow Left", nil,
+      function() return TokukoPDB.CombatRes.growLeft end,
+      function(v) TokukoPDB.CombatRes.growLeft = v; CR.RebuildAndRefresh() end, y); y = y - 28
+  end
+
+  if active.PetReminder then
+    local PR = TokukoP.modules.PetReminder
+    MakeDivider(c, y); y = y - 14
+    MakeHeader(c, "Pet Reminder", y); y = y - 26
+    MakeCheckbox(c, "Enable", nil,
+      function() return TokukoPDB.PetReminder.enabled end,
+      function(v) TokukoPDB.PetReminder.enabled = v; PR.RefreshDisplay() end, y); y = y - 30
+    MakeEditBox(c, "Message:", nil,
+      function() return TokukoPDB.PetReminder.message end,
+      function(v) TokukoPDB.PetReminder.message = v; PR.RefreshLabel() end, y); y = y - 52
+    MakeCheckbox(c, "Separate Combat Message", nil,
+      function() return TokukoPDB.PetReminder.combatMessageEnabled end,
+      function(v) TokukoPDB.PetReminder.combatMessageEnabled = v; PR.RefreshLabel() end, y); y = y - 30
+    MakeEditBox(c, "Combat Message:", nil,
+      function() return TokukoPDB.PetReminder.combatMessage end,
+      function(v) TokukoPDB.PetReminder.combatMessage = v; PR.RefreshLabel() end, y); y = y - 52
+    MakeDropdown(c, "Font", nil, PR.FONT_VALUES, PR.FONT_SORTING,
+      function() return TokukoPDB.PetReminder.font end,
+      function(v) TokukoPDB.PetReminder.font = v end, y, function() PR.RefreshLabel() end); y = y - 44
+    MakeSlider(c, "Font Size", nil, 12, 72, 1,
+      function() return TokukoPDB.PetReminder.fontSize end,
+      function(v) TokukoPDB.PetReminder.fontSize = v; PR.RefreshLabel() end, y); y = y - 42
+    MakeDropdown(c, "Effect", nil, PR.EFFECT_VALUES, PR.EFFECT_SORTING,
+      function() return TokukoPDB.PetReminder.effect end,
+      function(v) TokukoPDB.PetReminder.effect = v end, y); y = y - 44
+    MakeSlider(c, "Flash Rate", nil, 0.5, 5, 0.1,
+      function() return TokukoPDB.PetReminder.flashRate end,
+      function(v) TokukoPDB.PetReminder.flashRate = v end, y, "%.1f"); y = y - 42
+    MakeColorSwatch(c, "Text Colour", nil,
+      function() return TokukoPDB.PetReminder.color end,
+      function(r, g, b)
+        local col = TokukoPDB.PetReminder.color
+        col.r, col.g, col.b = r, g, b
+        PR.RefreshLabel()
+      end, y); y = y - 28
+    MakeDropdown(c, "Sound on Pet Death", "None: no sound.", PR.SOUND_VALUES, PR.SOUND_SORTING,
+      function() return TokukoPDB.PetReminder.sound end,
+      function(v) TokukoPDB.PetReminder.sound = v end, y, function() PR.PreviewSound() end); y = y - 44
+    MakeCheckbox(c, "Locked", nil,
+      function() return TokukoPDB.PetReminder.locked end,
+      function(v) PR.SetLocked(v) end, y); y = y - 28
+  end
+
+  if active.Tooltip then
+    MakeDivider(c, y); y = y - 14
+    MakeHeader(c, "Tooltip", y); y = y - 26
+    MakeCheckbox(c, "Cursor Anchor Out of Combat", nil,
       function() return TokukoPDB.Tooltip and TokukoPDB.Tooltip.enabled end,
       function(v)
         TokukoPDB.Tooltip.enabled = v
         if v then TokukoP.modules.Tooltip.ApplyNow() end
-      end, y)
+      end, y); y = y - 28
   end
+
+  -- y is negative and grows downward; the scroll child must be that tall for
+  -- the scrollbar to have anything to travel over.
+  c:SetHeight(math.max(1, -y + 10))
 
   return f
 end
