@@ -15,6 +15,7 @@ EmbedModule.lua
 HealerManaModule.lua
 CombatResModule.lua
 PetReminderModule.lua
+SoulstoneReminderModule.lua
 
 # Settings (must load after modules)
 Settings.lua

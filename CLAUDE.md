@@ -12,6 +12,7 @@ EmbedModule.lua       — Details! embed into ElvUI right chat panel (main modul
 HealerManaModule.lua  — movable overlay listing group/raid healers sorted by mana (lowest first)
 CombatResModule.lua   — movable icons for battle-res charges + Shaman Reincarnation cooldown
 PetReminderModule.lua — flashing warning when a Hunter/Warlock/Unholy DK has no active pet
+SoulstoneReminderModule.lua — whispers a configured player on pull countdown if nobody in the group has a Soulstone
 Settings.lua          — ElvUI AceConfig panel (/ec → Plugins → TokukoPreferences)
 DebugModule.lua       — optional debug commands, commented out in TOC by default
 ```
@@ -19,7 +20,7 @@ DebugModule.lua       — optional debug commands, commented out in TOC by defau
 ## Key Globals
 
 - `TokukoP` — addon namespace, `TokukoP.modules` holds all module references
-- `TokukoPDB` — SavedVariables, sub-tables: `Drinking`, `Embed`, `Tooltip`, `HealerMana`, `CombatRes`, `PetReminder`
+- `TokukoPDB` — SavedVariables, sub-tables: `Drinking`, `Embed`, `Tooltip`, `HealerMana`, `CombatRes`, `PetReminder`, `SoulstoneReminder`
 - `RightChatPanel` — ElvUI's right chat panel frame (confirmed global name)
 - `RightChatDataPanel` — ElvUI's data bar at bottom of right panel
 - `DetailsBaseFrame1/2` — Details! window frames
@@ -101,6 +102,7 @@ Frame backdrop: `frame:SetTemplate("Default")`
 
 - `/tpembed` — toggle embed on/off
 - `/tp` / `/tokukop` — open settings
+- `/tpss` — Soulstone reminder dry run: prints what the countdown check would do now, sends nothing
 - `/tpdebug` — state dump (DebugModule)
 - `/tpscan` — find Details frame globals (DebugModule)
 - `/tpgap` — measure frame-to-databar gap (DebugModule)
@@ -116,6 +118,14 @@ Frame backdrop: `frame:SetTemplate("Default")`
 - `UnitPowerPercent` returns **0–1** in 12.x (not 0–100) — multiply by 100 before displaying
 - For non-player units, `UnitPowerPercent` returns a **secret value** — arithmetic blocked. `tonumber(tostring(secret))` does NOT work (tainted string blocks tonumber too). Correct workaround: `tonumber(string.format("%.4f", raw))` — `string.format` accepts secrets and produces an untainted string
 - `UNIT_DIED`'s unit arg is a **secret string** in 12.x — comparing it (`unitID ~= "pet"`) taints execution and errors. Can't `RegisterUnitEvent("UNIT_DIED", ...)` either. So don't identify the dead unit: on `UNIT_DIED` just re-check your own state (PetReminder re-runs `RefreshDisplay`, which plays the pet-lost sound on a `petWasPresent → not HasPet()` transition). Note `UNIT_PET`/`PLAYER_SPECIALIZATION_CHANGED` unit args are `"player"` and NOT secret, so those comparisons are fine.
+
+## SoulstoneReminder Notes
+
+- DBM's pull timer (`/pull`, `/dbm pull`) is just `C_PartyInfo.DoCountdown()` (see `DBM-Core/modules/UserTimers.lua: CreatePullTimer`), so the single Blizzard event `START_PLAYER_COUNTDOWN` covers DBM, BigWigs and `/countdown`. No DBM callback needed.
+- `START_PLAYER_COUNTDOWN` args (initiator GUID, seconds) can be **secret values** in 12.x — DBM guards them with `hasanysecretvalues`. The module never reads them.
+- Soulstone buff = spell 20707 on the soulstoned unit. Scan uses `C_UnitAuras.GetUnitAuraBySpellID(unit, 20707)` (2-arg form, as EllesmereUIAuraBuffReminders uses it), falling back to a `GetAuraDataByIndex` HELPFUL walk. Group auras are readable **out of combat**; `C_Secrets.ShouldAurasBeSecret()` flips in combat in instanced content. A countdown is OOC by definition (DBM also ignores it in combat), so this is safe — but any secret/erroring result makes the check return **nil = don't whisper**, never a false accusation.
+- Whisper target is `GetUnitName(unit, true)` (`Name-Realm` cross-realm, `Name` same realm). Configured name is matched case-insensitively with any realm suffix stripped.
+- 20s repeat cooldown: countdowns get cancelled/re-sent.
 
 ## Git Branches
 

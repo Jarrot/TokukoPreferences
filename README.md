@@ -48,6 +48,15 @@ Flashing on-screen warning when a Hunter, Warlock, or Unholy Death Knight has no
 - Optional warning sound, and a separate combat-only message (e.g. "SUMMON YOUR PET")
 - Automatically hides while mounted or when a pet is present
 
+### Soulstone Reminder
+Whispers a chosen player when a pull countdown starts and nobody in the raid has a Soulstone.
+
+- Triggers on DBM pull timers, BigWigs pull timers and the native `/countdown` (all use the same Blizzard countdown event)
+- Only fires if the configured player is actually in the group; configurable name and message
+- "Raid Groups Only" toggle (default on) ignores 5-man countdowns
+- Stays silent if aura data can't be read reliably — never whispers on bad data
+- `/tpss` dry run prints what the check would do right now without whispering
+
 ### Tooltip
 Anchors the tooltip to your cursor when out of combat, snapping to the fixed ElvUI anchor position during combat.
 

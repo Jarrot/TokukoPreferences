@@ -449,6 +449,47 @@ local function InsertElvUIOptions()
         set   = function(_, v) TokukoP.modules.PetReminder.SetLocked(v) end,
       },
 
+      -- ── Soulstone Reminder ────────────────────────────────
+      soulstoneHeader = {
+        order = 80, type = "header", name = "Soulstone Reminder",
+      },
+      soulstoneEnabled = {
+        order = 81, type = "toggle",
+        name = "|cff00ff00Enable|r",
+        desc = "When a pull countdown starts (DBM or /countdown) and nobody in the group has a Soulstone, whisper the player below.",
+        get  = function() return db.SoulstoneReminder.enabled end,
+        set  = function(_, v) db.SoulstoneReminder.enabled = v end,
+      },
+      soulstoneOnlyRaid = {
+        order = 82, type = "toggle",
+        name = "Raid Groups Only",
+        desc = "Ignore countdowns in 5-man parties.",
+        get  = function() return db.SoulstoneReminder.onlyInRaid end,
+        set  = function(_, v) db.SoulstoneReminder.onlyInRaid = v end,
+      },
+      soulstoneBreak = {
+        order = 83, type = "description", name = "", width = "full",
+      },
+      soulstoneTarget = {
+        order = 84, type = "input", width = "full",
+        name = "Player to Whisper",
+        desc = "Character name (realm optional). Only whispered if they are in the group.",
+        get  = function() return db.SoulstoneReminder.targetName end,
+        set  = function(_, v) db.SoulstoneReminder.targetName = v end,
+      },
+      soulstoneMessage = {
+        order = 85, type = "input", width = "full",
+        name = "Whisper Message",
+        get  = function() return db.SoulstoneReminder.message end,
+        set  = function(_, v) db.SoulstoneReminder.message = v end,
+      },
+      soulstoneTest = {
+        order = 86, type = "execute",
+        name = "Test Now",
+        desc = "Dry run: prints to chat what the check would do right now (no whisper is sent). Same as /tpss.",
+        func = function() TokukoP.modules.SoulstoneReminder.Check(true) end,
+      },
+
       -- ── Tooltip ───────────────────────────────────────────
       tooltipHeader = {
         order = 50, type = "header", name = "Tooltip",
@@ -891,6 +932,23 @@ local function BuildFallbackWindow()
     MakeCheckbox(c, "Locked", nil,
       function() return TokukoPDB.PetReminder.locked end,
       function(v) PR.SetLocked(v) end, y); y = y - 28
+  end
+
+  if active.SoulstoneReminder then
+    MakeDivider(c, y); y = y - 14
+    MakeHeader(c, "Soulstone Reminder", y); y = y - 26
+    MakeCheckbox(c, "Enable", "Whisper the player below when a pull countdown starts and nobody in the group has a Soulstone.",
+      function() return TokukoPDB.SoulstoneReminder.enabled end,
+      function(v) TokukoPDB.SoulstoneReminder.enabled = v end, y); y = y - 28
+    MakeCheckbox(c, "Raid Groups Only", "Ignore countdowns in 5-man parties.",
+      function() return TokukoPDB.SoulstoneReminder.onlyInRaid end,
+      function(v) TokukoPDB.SoulstoneReminder.onlyInRaid = v end, y); y = y - 30
+    MakeEditBox(c, "Player to Whisper:", "Character name (realm optional). Only whispered if they are in the group.",
+      function() return TokukoPDB.SoulstoneReminder.targetName end,
+      function(v) TokukoPDB.SoulstoneReminder.targetName = v end, y); y = y - 52
+    MakeEditBox(c, "Whisper Message:", nil,
+      function() return TokukoPDB.SoulstoneReminder.message end,
+      function(v) TokukoPDB.SoulstoneReminder.message = v end, y); y = y - 44
   end
 
   if active.Tooltip then
