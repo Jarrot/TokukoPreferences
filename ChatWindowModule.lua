@@ -15,6 +15,14 @@
 -- then anchor-determined, the engine layout pass recomputes it, and the
 -- frame's OnSizeChanged dispatches as a fresh SECURE execution. Out of
 -- combat only, deferred out of any Blizzard pass with C_Timer.
+--
+-- Applied ONLY when a setting changes (panel, shortcut buttons, Unlock Mode)
+-- -- no login / loading-screen / chat-update handling. Persistence is
+-- Blizzard's own: each apply also writes the window's saved position and
+-- dimensions (SetChatWindowSavedPosition / SetChatWindowSavedDimensions, the
+-- two C calls FCF_SavePositionAndDimensions makes on a drag-stop), and
+-- Blizzard's FloatingChatFrame_Update restores undocked windows from that
+-- store at login and on every chat-window update (FCF_RestorePositionAndDimensions).
 
 local ADDON_NAME = ...
 local TokukoP = TokukoP
@@ -130,6 +138,16 @@ local function ApplyNow()
   ClearPoints(cf)
   SetPoint(cf, "BOTTOMRIGHT", UIParent, "BOTTOMRIGHT", -x, y)
   SetPoint(cf, "TOPLEFT", UIParent, "BOTTOMRIGHT", -x - w, y + h)
+
+  -- Blizzard's store, in FCF_SavePositionAndDimensions' format: offsets as
+  -- fractions of the screen, restored as SetPoint(point, xOff * GetScreenWidth(),
+  -- yOff * GetScreenHeight()). Only C calls -- no Blizzard Lua state written.
+  local id = cf:GetID()
+  local sw, sh = GetScreenWidth(), GetScreenHeight()
+  if id and sw and sh and sw > 0 and sh > 0 then
+    SetChatWindowSavedPosition(id, "BOTTOMRIGHT", -x / sw, y / sh)
+    SetChatWindowSavedDimensions(id, w, h)
+  end
   NudgeEUIChat()
 end
 
@@ -259,17 +277,24 @@ function ChatWindowModule.MirrorMain()
 end
 
 -- Read wherever the window was dragged / resized to.
-function ChatWindowModule.UseCurrent()
+-- Store the window's live rect (after a hand drag / resize) as our numbers.
+local function Capture()
   local cf = ChatWindowModule.FindWindow()
-  if not cf then return end
+  if not cf or cf == ChatFrame1 or cf.isDocked then return false end
   local r, b = cf:GetRight(), cf:GetBottom()
   local w, h = cf:GetSize()
-  if not (r and b and w and h) then return end
+  if not (r and b and w and h) then return false end
+  local issecret = issecretvalue
+  if issecret and (issecret(r) or issecret(b) or issecret(w) or issecret(h)) then return false end
   local s = cf:GetEffectiveScale() / UIParent:GetEffectiveScale()
   db.x = math.floor(UIParent:GetWidth() - r * s + 0.5)
   db.y = math.floor(b * s + 0.5)
   db.width, db.height = math.floor(w * s + 0.5), math.floor(h * s + 0.5)
-  ChatWindowModule.Apply()
+  return true
+end
+
+function ChatWindowModule.UseCurrent()
+  if Capture() then ChatWindowModule.Apply() end
 end
 
 -- ===============================
@@ -286,22 +311,12 @@ function ChatWindowModule.Initialize()
 end
 
 function ChatWindowModule.RegisterEvents(frame)
-  frame:RegisterEvent("PLAYER_ENTERING_WORLD")
-  frame:RegisterEvent("UPDATE_CHAT_WINDOWS")
   frame:RegisterEvent("PLAYER_REGEN_ENABLED")
 end
 
 function ChatWindowModule.OnEvent(event)
-  if event == "PLAYER_ENTERING_WORLD" then
-    -- Blizzard restores saved chat positions/sizes around login and loading
-    -- screens; land after it.
-    C_Timer.After(1, ApplyNow)
-  elseif event == "UPDATE_CHAT_WINDOWS" then
+  if event == "PLAYER_REGEN_ENABLED" and pendingApply then
+    pendingApply = false
     ChatWindowModule.Apply()
-  elseif event == "PLAYER_REGEN_ENABLED" then
-    if pendingApply then
-      pendingApply = false
-      ChatWindowModule.Apply()
-    end
   end
 end
