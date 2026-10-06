@@ -635,6 +635,25 @@ end
 
 -- Dropdown built on the modern menu system (MenuUtil + rootDescription), the
 -- same API EllesmereUI and DBM use on 12.x. UIDropDownMenu is legacy.
+-- Plain push button; `width` defaults to a third of the content area.
+local function MakeButton(parent, text, tooltip, onClick, xOffset, yOffset, width)
+  local btn = CreateFrame("Button", nil, parent, "UIPanelButtonTemplate")
+  btn:SetPoint("TOPLEFT", xOffset, yOffset)
+  btn:SetSize(width or 110, 22)
+  btn:SetText(text)
+  SkinBtn(btn)
+  btn:SetScript("OnClick", onClick)
+  if tooltip then
+    btn:SetScript("OnEnter", function(self)
+      GameTooltip:SetOwner(self, "ANCHOR_RIGHT")
+      GameTooltip:SetText(tooltip, nil, nil, nil, nil, true)
+      GameTooltip:Show()
+    end)
+    btn:SetScript("OnLeave", function() GameTooltip:Hide() end)
+  end
+  return btn
+end
+
 local function MakeDropdown(parent, label, tooltip, values, sorting, getValue, setValue, yOffset, onChanged)
   local lbl = parent:CreateFontString(nil, "OVERLAY", "GameFontNormal")
   lbl:SetPoint("TOPLEFT", 20, yOffset)
@@ -973,6 +992,35 @@ local function BuildFallbackWindow()
       function(v) TokukoPDB.EditBox.bgAlpha = v; EB.RefreshCover() end, y, "%.2f"); y = y - 42
   end
 
+  if active.ChatWindow then
+    local CW = TokukoP.modules.ChatWindow
+    local cdb = TokukoPDB.ChatWindow
+    local screenW, screenH = math.floor(UIParent:GetWidth()), math.floor(UIParent:GetHeight())
+    MakeDivider(c, y); y = y - 14
+    MakeHeader(c, "Second Chat Window", y); y = y - 26
+    MakeCheckbox(c, "Enable", TokukoP.ChatWindowHelpText(),
+      function() return cdb.enabled end,
+      function(v) cdb.enabled = v; CW.Apply() end, y); y = y - 30
+    MakeEditBox(c, "Chat Window Name:", "Tab name of the undocked chat window to size and place.",
+      function() return cdb.windowName end,
+      function(v) cdb.windowName = v; CW.Apply() end, y); y = y - 52
+    MakeSlider(c, "Width", nil, 100, screenW, 1,
+      function() return cdb.width end, function(v) cdb.width = v; CW.Apply() end, y); y = y - 42
+    MakeSlider(c, "Height", nil, 50, screenH, 1,
+      function() return cdb.height end, function(v) cdb.height = v; CW.Apply() end, y); y = y - 42
+    MakeSlider(c, "X (from right edge)", nil, 0, screenW, 1,
+      function() return cdb.x end, function(v) cdb.x = v; CW.Apply() end, y); y = y - 42
+    MakeSlider(c, "Y (from bottom edge)", nil, 0, screenH, 1,
+      function() return cdb.y end, function(v) cdb.y = v; CW.Apply() end, y); y = y - 42
+    -- Buttons change the DB behind the sliders; reopen /tp to see new values.
+    MakeButton(c, "Match Main Size", "Copy the main chat window's width and height. Reopen /tp to see the new values.",
+      function() CW.MatchMainSize() end, 20, y)
+    MakeButton(c, "Mirror Main Chat", "Same height from the bottom as the main chat, same distance from the right edge as the main chat has from the left. Reopen /tp to see the new values.",
+      function() CW.MirrorMain() end, 134, y)
+    MakeButton(c, "Use Current", "Read the window's current position and size (after dragging or resizing it by hand). Reopen /tp to see the new values.",
+      function() CW.UseCurrent() end, 248, y); y = y - 32
+  end
+
   if active.Tooltip then
     MakeDivider(c, y); y = y - 14
     MakeHeader(c, "Tooltip", y); y = y - 26
@@ -1022,6 +1070,23 @@ function TokukoP.EditBoxHelpText()
   return "While typing in chat (Enter until Esc / send), keep the edit box on top of any data bar under it.\n\n"
     .. GOLD .. "Cover Bars with Background|r - puts a background exactly over each data bar under the edit box (pick the bar's colour to blend in). The edit box itself is not moved or resized.\n\n"
     .. GOLD .. "Fade Data Bars|r - fades out every data bar the edit box overlaps, whole bar. Uses EllesmereUI internals, so an EUI update may break it."
+end
+
+function TokukoP.ChatWindowHelpText()
+  local GOLD = "|cffffd100"
+  local status = TokukoP.modules.ChatWindow and TokukoP.modules.ChatWindow.Status() or "missing"
+  local statusText = ({
+    ok      = "|cff60ff60Window found, undocked.|r",
+    missing = "|cffff6060No chat window with that name.|r",
+    docked  = "|cffff6060That window is docked - drag its tab off the chat to undock it.|r",
+    main    = "|cffff6060That is the main chat window - pick another.|r",
+  })[status]
+  return "Exact size and position for a free-floating chat window, styled by EllesmereUI like the main chat. Details will embed into it.\n\n"
+    .. GOLD .. "Setup (once)|r\n"
+    .. "1. Right-click the General tab > New Window, name it (e.g. Details)\n"
+    .. "2. Drag its tab off the chat to undock it\n"
+    .. "3. Right-click its tab > Settings, untick all messages and channels\n\n"
+    .. "Status: " .. statusText
 end
 
 function TokukoP.EnterSettingsPreview()

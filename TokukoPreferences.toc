@@ -18,6 +18,7 @@ CombatResModule.lua
 PetReminderModule.lua
 SoulstoneReminderModule.lua
 EditBoxModule.lua
+ChatWindowModule.lua
 
 # Settings (must load after modules)
 Settings.lua

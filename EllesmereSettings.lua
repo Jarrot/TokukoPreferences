@@ -247,6 +247,46 @@ local function EditBoxPage()
   }
 end
 
+local function Button(text, buttonText, tooltip, onClick)
+  return { type = "button", text = text, buttonText = buttonText, tooltip = tooltip, onClick = onClick }
+end
+
+local function ChatWindowPage()
+  local db, CW = TokukoPDB.ChatWindow, TokukoP.modules.ChatWindow
+  local screenW = math.floor(UIParent:GetWidth())
+  local screenH = math.floor(UIParent:GetHeight())
+  local function apply() CW.Apply() end
+  -- Buttons rewrite the values behind the sliders; RefreshPage redraws them.
+  local function then_refresh(fn) return function() fn(); C_Timer.After(0.1, Refresh) end end
+  return {
+    { header = "WINDOW", rows = {
+      -- Tooltip as a function: the status line is re-evaluated on every hover.
+      Toggle("Enable", TokukoP.ChatWindowHelpText,
+        function() return db.enabled end, function(v) db.enabled = v; apply() end, WIDE_TIP),
+      Input("Chat Window Name", "Tab name of the undocked chat window to size and place.",
+        function() return db.windowName end, function(v) db.windowName = v; apply() end),
+    } },
+    { header = "SIZE & POSITION", rows = {
+      Slider("Width", nil, 100, screenW, 1,
+        function() return db.width end, function(v) db.width = v; apply() end),
+      Slider("Height", nil, 50, screenH, 1,
+        function() return db.height end, function(v) db.height = v; apply() end),
+      Slider("X (from right edge)", nil, 0, screenW, 1,
+        function() return db.x end, function(v) db.x = v; apply() end),
+      Slider("Y (from bottom edge)", nil, 0, screenH, 1,
+        function() return db.y end, function(v) db.y = v; apply() end),
+    } },
+    { header = "SHORTCUTS", rows = {
+      Button("Main Chat Size", "Match", "Copy the main chat window's width and height.",
+        then_refresh(CW.MatchMainSize)),
+      Button("Mirror Main Chat", "Mirror", "Same height from the bottom as the main chat, and the same distance from the right edge as the main chat has from the left.",
+        then_refresh(CW.MirrorMain)),
+      Button("Current Position", "Use Current", "Read the window's current position and size, after dragging or resizing it by hand.",
+        then_refresh(CW.UseCurrent)),
+    } },
+  }
+end
+
 local function TooltipPage()
   local db = TokukoPDB.Tooltip
   return {
@@ -270,6 +310,8 @@ local PAGES = {
     description = "Whisper a player on pull countdown when nobody has a Soulstone." },
   { module = "Drinking",          title = "Drinking",           build = DrinkingPage,
     description = "Group chat announcements when you eat or drink." },
+  { module = "ChatWindow",        title = "Second Chat Window", build = ChatWindowPage,
+    description = "Exact size and position for a free-floating chat window (Details host)." },
   { module = "EditBox",           title = "Chat Edit Box",      build = EditBoxPage,
     description = "Let the chat edit box sit on top of a data bar." },
   { module = "Tooltip",           title = "Tooltip",            build = TooltipPage,

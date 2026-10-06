@@ -13,7 +13,8 @@ HealerManaModule.lua  — movable overlay listing group/raid healers sorted by m
 CombatResModule.lua   — movable icons for battle-res charges + Shaman Reincarnation cooldown
 PetReminderModule.lua — flashing warning when a Hunter/Warlock/Unholy DK has no active pet
 SoulstoneReminderModule.lua — whispers a configured player on pull countdown if nobody in the group has a Soulstone
-EditBoxModule.lua     — EllesmereUI only: fades out EUI data bars overlapped by the open chat edit box
+EditBoxModule.lua     — EllesmereUI only: keeps the active chat edit box on top of EUI data bars (cover/fade)
+ChatWindowModule.lua  — EllesmereUI only: exact size/position for an undocked chat window (Details host)
 Settings.lua          — ElvUI AceConfig panel (/ec → Plugins → TokukoPreferences) + standalone /tp window
 EllesmereSettings.lua — EllesmereUI options-panel section via EUI's Plugin API
 DebugModule.lua       — optional debug commands, commented out in TOC by default
@@ -22,7 +23,7 @@ DebugModule.lua       — optional debug commands, commented out in TOC by defau
 ## Key Globals
 
 - `TokukoP` — addon namespace, `TokukoP.modules` holds all module references
-- `TokukoPDB` — SavedVariables, sub-tables: `Drinking`, `Embed`, `Tooltip`, `HealerMana`, `CombatRes`, `PetReminder`, `SoulstoneReminder`, `EditBox`
+- `TokukoPDB` — SavedVariables, sub-tables: `Drinking`, `Embed`, `Tooltip`, `HealerMana`, `CombatRes`, `PetReminder`, `SoulstoneReminder`, `EditBox`, `ChatWindow`
 - `RightChatPanel` — ElvUI's right chat panel frame (confirmed global name)
 - `RightChatDataPanel` — ElvUI's data bar at bottom of right panel
 - `DetailsBaseFrame1/2` — Details! window frames
@@ -149,6 +150,14 @@ Frame backdrop: `frame:SetTemplate("Default")`
   - **cover** (default): on focus, each *visible* (`IsVisible` + effective alpha > 0) `EllesmereUIDataBarsBar<id>` overlapping the box gets a backdrop frame of ours, `SetAllPoints(bar)` (exact fit), strata HIGH level 500, mouse-enabled to swallow bar clicks; the edit box is raised to DIALOG. Undone on focus lost. Bars found by probing global names 1..200 (ids are monotonic with gaps) — **no EUI internals**. The edit box's size/position are never touched (EllesmereUIChat owns them as part of the chat window — Jarrot's call). Default colour = EllesmereUIChat's panel default (0.03, 0.045, 0.05) at alpha 1; pick the bar's colour to blend.
   - **fade**: fades every `EllesmereUIDataBarsBar<id>` overlapping the box (ids via `EllesmereUI._ModuleNS.EllesmereUIDataBars.BarsInOrder()`), SetAlpha only (bars with secure blocks are protected; Show/Hide in combat is blocked). Restores via DataBars `ns.UpdateAllBarVisibility()` and post-hooks it to re-fade while typing — hook installed lazily, only once fade is used. **Uses EUI internals** — EUI's plugin guide asks addons not to; opt-in, may break on EUI updates. Gaps: mouseover bars reappear on hover; faded bar still clickable.
 - Never `HookScript` a chat edit box: it taints the chat-type attribute and sends get silently swallowed in encounter/M+/PvP chat lockdown (documented in EllesmereUIChat). Use `EventRegistry` callbacks `ChatFrame.OnEditBoxFocusGained/FocusLost` (+ `OnEditBoxHide` as a fallback) — they run through `securecallfunction`. Key on focus, not Show/Hide: with `chatStyle` "im" the box stays shown while inactive. Filter to ChatFrame1-10 boxes (temp whisper windows carry secret BN tell targets).
+
+## ChatWindowModule Notes (EllesmereUI)
+
+- EUI has no chat panel of its own: it paints a background behind each Blizzard chat window (incl. undocked ones, which also get its tab ghost + resize grip). So the "right chat panel" under EUI = a real **undocked** chat window the player creates (New Window, drag tab off). We never create/dock/undock windows — writing Blizzard dock state from insecure code taints the secure whisper temp-window chain (EllesmereUIChat comments).
+- Found by tab name via `GetChatWindowInfo(i)`. Refuses ChatFrame1 and docked windows.
+- **Never `SetSize` a chat frame.** Size = two corner anchors (BOTTOMRIGHT + TOPLEFT relative to UIParent BOTTOMRIGHT), the same lane EllesmereUIChat uses for ChatFrame1: the rect is anchor-determined and OnSizeChanged dispatches secure. Uses `SetPointBase`/`ClearAllPointsBase` when present (Edit Mode overrides). Deferred `C_Timer.After(0)`, out of combat only (queued to REGEN_ENABLED). Re-applied 1s after PLAYER_ENTERING_WORLD (after Blizzard's saved-dimension restore) and on UPDATE_CHAT_WINDOWS.
+- ElvUI by contrast owns Left/RightChatPanel frames sized by `panelWidth/Height(Right)` and calls `chat:SetSize` inside them — the panel-first model; we get the same numbers without SetSize.
+- Values are the chat frame's own rect; EUI's painted panel extends ~10px each side plus the tab band.
 
 ## Git Branches
 
