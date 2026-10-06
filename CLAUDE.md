@@ -45,6 +45,7 @@ Load order: Core → DrinkingModule → TooltipModule → EmbedModule → Settin
 - Separate `DoEmbedEUI`/`DoUnembedEUI`; the ElvUI functions are untouched. `PositionFrames` and the dual split are shared (tab height / RightChatDataPanel are 0/nil against the host).
 - 0.2s ticker while embedded: re-syncs the host (window moves/resizes/Unlock Mode/hidden) and re-anchors a meter whose first anchor is no longer the host (Details' own ShowWindow — Jarrot toggles meters with a Details data-bar broker).
 - `combatOnly` ("Hide Out of Combat") is ignored under EUI and hidden from both settings panels.
+- **Fit:** Details' title bar / toolbar / status bar sit OUTSIDE its base frame (title bar anchored bottom-to-top of it). Under ElvUI they fit because the embed starts below the right panel's tab strip (`yOff = -tabH`) — the title bar sat in the tab-strip space. The EUI host is only the chat frame's text rect, so `ChromeInsets()` keeps room inside it: top = max(20 toolbar, titlebar_height if shown) when `toolbar_side == 1`; bottom += 20 if `toolbar_side == 2`, += 14 if `show_statusbar` (Details' own clamp math). Plus user `topAdjust`/`bottomAdjust` sliders.
 - Refuses to embed when the window is missing/docked/ChatFrame1.
 - Settings: EUI Chat row → "Details" tab (enable, window #1/#2, dual, split).
 

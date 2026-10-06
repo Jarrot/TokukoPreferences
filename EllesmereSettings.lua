@@ -312,6 +312,12 @@ local function EmbedPage()
         getValue = function() return math.floor((db.splitRatio or 0.5) * 100 + 0.5) end,
         setValue = function(v) db.splitRatio = v / 100; EM.Reposition() end },
     } },
+    { header = "FIT", rows = {
+      Slider("Top Space Adjust", "Extra room above the meters for Details' title bar / toolbar, on top of what Details' own settings report. Negative = less.", -30, 30, 1,
+        function() return db.topAdjust or 0 end, function(v) db.topAdjust = v; EM.Reposition() end),
+      Slider("Bottom Space Adjust", "Extra room below the meters (Details' bottom toolbar / status bar). Negative = less.", -30, 30, 1,
+        function() return db.bottomAdjust or 0 end, function(v) db.bottomAdjust = v; EM.Reposition() end),
+    } },
   }
 end
 

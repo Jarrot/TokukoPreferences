@@ -30,6 +30,11 @@ EmbedModule.DEFAULTS = {
   window2     = 2,
   combatOnly  = false,
   splitRatio  = 0.5,
+  -- EllesmereUI only: fine-tune the space kept for Details' own title bar /
+  -- toolbar (top) and toolbar / status bar (bottom), on top of what Details'
+  -- settings say. Skins vary.
+  topAdjust    = 0,
+  bottomAdjust = 0,
 }
 
 -- ===============================
@@ -261,6 +266,30 @@ end
 -- Positioning
 -- ===============================
 
+-- EllesmereUI: Details' chrome is left visible (size/position only), and its
+-- title bar / toolbar / status bar sit OUTSIDE the base frame -- the title bar
+-- is anchored bottom-to-top of it (window_main.lua). Keep room for them so the
+-- whole window fits the chat window. Numbers from Details' own clamp math
+-- (toolbar 20px on its side, status bar 14px) and its titlebar_height.
+-- ElvUI hides that chrome, so no insets there.
+local function ChromeInsets(frame)
+  if not IsEUI() or not frame then return 0, 0 end
+  local inst = frame._instance or frame.instance
+  local top, bottom = 0, 0
+  if inst then
+    local title = (inst.titlebar_shown and tonumber(inst.titlebar_height)) or 0
+    if inst.toolbar_side == 2 then
+      bottom = bottom + 20
+      top = title
+    else
+      top = math.max(20, title)
+    end
+    if inst.show_statusbar then bottom = bottom + 14 end
+  end
+  local db = TokukoPDB.Embed
+  return math.max(0, top + (db.topAdjust or 0)), math.max(0, bottom + (db.bottomAdjust or 0))
+end
+
 function PositionFrames()
   if not panelFrame or not embedded then return end
   local db          = TokukoPDB.Embed
@@ -275,10 +304,11 @@ function PositionFrames()
     local w1 = (db.dualEmbed and meterFrame2)
                and math.floor(pw * TokukoP.Clamp(db.splitRatio, 0.2, 0.8))
                or (pw - 1)
-    ForceDetailsSize(meterFrame1, w1, ph)
+    local t1, b1 = ChromeInsets(meterFrame1)
+    ForceDetailsSize(meterFrame1, w1, ph - t1 - b1)
     meterFrame1:ClearAllPoints()
-    meterFrame1:SetPoint("TOPLEFT",    panelFrame,     "TOPLEFT",        0, yOff)
-    meterFrame1:SetPoint("BOTTOMLEFT", botAnchorFrame, botAnchorPoint,   0, botOffset)
+    meterFrame1:SetPoint("TOPLEFT",    panelFrame,     "TOPLEFT",        0, yOff - t1)
+    meterFrame1:SetPoint("BOTTOMLEFT", botAnchorFrame, botAnchorPoint,   0, botOffset + b1)
     meterFrame1:SetWidth(w1)
     if meterFrame1.floatingframe and not IsEUI() then meterFrame1.floatingframe:Hide() end
   end
@@ -286,10 +316,11 @@ function PositionFrames()
   if db.dualEmbed and meterFrame2 then
     local w1 = math.floor(pw * TokukoP.Clamp(db.splitRatio, 0.2, 0.8))
     local w2 = pw - w1 - 1
-    ForceDetailsSize(meterFrame2, w2, ph)
+    local t2, b2 = ChromeInsets(meterFrame2)
+    ForceDetailsSize(meterFrame2, w2, ph - t2 - b2)
     meterFrame2:ClearAllPoints()
-    meterFrame2:SetPoint("TOPRIGHT",    panelFrame,     "TOPRIGHT",        -1, yOff)
-    meterFrame2:SetPoint("BOTTOMRIGHT", botAnchorFrame, botAnchorPointR,   -1, botOffset)
+    meterFrame2:SetPoint("TOPRIGHT",    panelFrame,     "TOPRIGHT",        -1, yOff - t2)
+    meterFrame2:SetPoint("BOTTOMRIGHT", botAnchorFrame, botAnchorPointR,   -1, botOffset + b2)
     meterFrame2:SetWidth(w2)
     if meterFrame2.floatingframe and not IsEUI() then meterFrame2.floatingframe:Hide() end
   end
