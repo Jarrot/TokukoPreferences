@@ -13,9 +13,11 @@ TokukoP.modules.Embed = EmbedModule
 -- EllesmereUI: there is no right panel -- EUI paints a backdrop behind each
 -- Blizzard chat window -- so the host is an invisible frame of OURS laid
 -- numerically over the Second Chat Window's rect (see "EllesmereUI host").
--- Everything downstream (positioning, split, chrome, lock) works unchanged
--- against that frame; the ElvUI-only bits (chat-tab height, RightChatDataPanel,
--- the ">" toggle) find nothing under EUI and drop out.
+-- Under EUI the embed does SIZE AND POSITION ONLY (Jarrot's call): Details
+-- windows are anchored to that frame and sized to it -- never reparented, no
+-- strata, chrome, lock, alpha, clamp or show/hide changes. Positioning and
+-- the dual split reuse PositionFrames; the ElvUI-only bits (chat-tab height,
+-- RightChatDataPanel, the ">" toggle) find nothing under EUI and drop out.
 EmbedModule.HOSTS = { elvui = true, ellesmere = true }
 
 -- ===============================
@@ -84,8 +86,8 @@ end
 -- break in encounter lockdown). EUI places its own chat panel NUMERICALLY
 -- from the chat frame's rect for the same reason; so do we. A light ticker
 -- keeps the host on the window (moves, resizes, Unlock Mode, show/hide) and
--- re-asserts the embed after Details' own ShowWindow (e.g. a Details data-bar
--- toggle) resets its geometry and chrome.
+-- re-anchors a meter whose position Details reset (its own ShowWindow, e.g.
+-- from a Details data-bar toggle).
 
 local IsEUI = function() return TokukoP.host == TokukoP.HOST_ELLESMERE end
 
@@ -93,7 +95,6 @@ local euiHost        = nil
 local euiTicker      = nil
 local lastRect       = nil   -- "l,b,w,h" cache so we only re-place on change
 local PositionFrames -- forward declaration (defined under Positioning)
-local TryHideChrome  -- forward declaration (defined under Chrome hiding)
 
 local function GetEUIHost()
   if not euiHost then
@@ -139,19 +140,11 @@ local function SyncEUIHost()
 end
 
 -- Details re-shown by something else (its own toggle, a data-bar broker)
--- resets parent/anchors and chrome; put it back. Cheap checks only.
+-- re-anchors itself to its saved spot; put the position back. Position only.
 local function ReassertMeter(frame)
   if not frame then return end
-  local inst = frame._instance or frame.instance
-  if inst and inst.ativa == false then return end  -- hidden on purpose
   local _, rel = frame:GetPoint(1)
-  if frame:GetParent() ~= euiHost or rel ~= euiHost then
-    frame:SetParent(euiHost)
-    PositionFrames()
-  end
-  if frame.titleBar and frame.titleBar.IsShown and frame.titleBar:IsShown() then
-    TryHideChrome(frame)
-  end
+  if rel ~= euiHost then PositionFrames() end
 end
 
 local function StartEUITicker(meters)
@@ -287,7 +280,7 @@ function PositionFrames()
     meterFrame1:SetPoint("TOPLEFT",    panelFrame,     "TOPLEFT",        0, yOff)
     meterFrame1:SetPoint("BOTTOMLEFT", botAnchorFrame, botAnchorPoint,   0, botOffset)
     meterFrame1:SetWidth(w1)
-    if meterFrame1.floatingframe then meterFrame1.floatingframe:Hide() end
+    if meterFrame1.floatingframe and not IsEUI() then meterFrame1.floatingframe:Hide() end
   end
 
   if db.dualEmbed and meterFrame2 then
@@ -298,7 +291,7 @@ function PositionFrames()
     meterFrame2:SetPoint("TOPRIGHT",    panelFrame,     "TOPRIGHT",        -1, yOff)
     meterFrame2:SetPoint("BOTTOMRIGHT", botAnchorFrame, botAnchorPointR,   -1, botOffset)
     meterFrame2:SetWidth(w2)
-    if meterFrame2.floatingframe then meterFrame2.floatingframe:Hide() end
+    if meterFrame2.floatingframe and not IsEUI() then meterFrame2.floatingframe:Hide() end
   end
 end
 
@@ -342,7 +335,7 @@ end
 -- Chrome hiding
 -- ===============================
 
-function TryHideChrome(frame)
+local function TryHideChrome(frame)
   if not frame then return end
   if frame.titleBar and frame.titleBar.Hide then frame.titleBar:Hide() end
   if frame.border  and frame.border.Hide  then frame.border:Hide()  end
@@ -426,6 +419,58 @@ end
 -- Embed / Un-embed
 -- ===============================
 
+-- EllesmereUI: size and position only. Anchor + size the Details windows to
+-- our host; touch nothing else about them.
+local function DoEmbedEUI()
+  local db = TokukoPDB.Embed
+  panelFrame = GetHostPanel()
+  if not SyncEUIHost() then
+    print("|cffff6600TokukoP Embed:|r Second Chat Window not found or docked. "
+          .. "Set it up under Chat > Second Window first.")
+    return
+  end
+  meterFrame1 = GetDetailsFrame(db.window1)
+  if not meterFrame1 then
+    print("|cffff6600TokukoP Embed:|r Could not find Details window " .. tostring(db.window1) .. ".")
+    return
+  end
+  SaveOriginalPosition(meterFrame1, 1)
+  meterFrame2 = nil
+  if db.dualEmbed then
+    local frame2 = GetDetailsFrame(db.window2)
+    if frame2 and frame2 ~= meterFrame1 then
+      meterFrame2 = frame2
+      SaveOriginalPosition(meterFrame2, 2)
+    else
+      print("|cffff6600TokukoP Embed:|r Could not find Details window "
+            .. tostring(db.window2) .. ". Single embed only.")
+    end
+  end
+  embedded = true
+  PositionFrames()
+  StartEUITicker(function() return meterFrame1, meterFrame2 end)
+  StartRepositionTimer()
+end
+
+-- Put position and size back exactly as they were; nothing else was changed.
+local function RestorePositionOnly(frame, slot)
+  local orig = slot == 1 and origPoint1 or origPoint2
+  if not frame or not orig or not orig.point then return end
+  frame:ClearAllPoints()
+  frame:SetPoint(orig.point, orig.relativeTo or UIParent,
+                 orig.relPoint or orig.point, orig.x or 0, orig.y or 0)
+  ForceDetailsSize(frame, orig.w or 300, orig.h or 200)
+end
+
+local function DoUnembedEUI()
+  embedded = false
+  StopEUITicker()
+  if repositionTimer then repositionTimer:Cancel(); repositionTimer = nil end
+  RestorePositionOnly(meterFrame1, 1)
+  RestorePositionOnly(meterFrame2, 2)
+  meterFrame1, meterFrame2 = nil, nil
+end
+
 local function DoEmbed()
   local db = TokukoPDB.Embed
   if embedded then return end
@@ -436,14 +481,11 @@ local function DoEmbed()
     return
   end
 
-  panelFrame = panelFrame or GetHostPanel()
+  if IsEUI() then DoEmbedEUI(); return end
+
+  panelFrame = panelFrame or GetElvUIRightPanel()
   if not panelFrame then
     print("|cffff6600TokukoP Embed:|r Could not find ElvUI right chat panel. Is ElvUI loaded?")
-    return
-  end
-  if IsEUI() and not SyncEUIHost() then
-    print("|cffff6600TokukoP Embed:|r Second Chat Window not found or docked. "
-          .. "Set it up under Chat > Second Window first.")
     return
   end
 
@@ -511,21 +553,14 @@ local function DoEmbed()
   HookToggleButton()
   embedded = true
   metersVisible = true
-  if IsEUI() then
-    -- EUI's chat panel sits at the chat frame's strata; LOW Details frames
-    -- could land under it. MEDIUM keeps the meters above the panel paint.
-    if meterFrame1 then meterFrame1:SetFrameStrata("MEDIUM") end
-    if meterFrame2 then meterFrame2:SetFrameStrata("MEDIUM") end
-    StartEUITicker(function() return meterFrame1, meterFrame2 end)
-  end
   PositionFrames()
   StartRepositionTimer()
 end
 
 local function DoUnembed()
   if not embedded then return end
+  if IsEUI() then DoUnembedEUI(); return end
   embedded = false
-  StopEUITicker()
   if repositionTimer then repositionTimer:Cancel(); repositionTimer = nil end
 
   local function unembedFrame(frame)
@@ -595,7 +630,7 @@ function EmbedModule.SetEnabled(v)
   if v then
     if not embedded then DoEmbed() end
     -- Respect "Hide Out of Combat" so enabling out of combat doesn't flash the meters.
-    if embedded and TokukoPDB.Embed.combatOnly and not InCombatLockdown() then
+    if embedded and TokukoPDB.Embed.combatOnly and not IsEUI() and not InCombatLockdown() then
       SetMetersVisible(false)
     end
   else
@@ -610,7 +645,7 @@ function EmbedModule.Reapply()
   if not embedded then return end
   DoUnembed()
   DoEmbed()
-  if embedded and TokukoPDB.Embed.combatOnly and not InCombatLockdown() then
+  if embedded and TokukoPDB.Embed.combatOnly and not IsEUI() and not InCombatLockdown() then
     SetMetersVisible(false)
   end
 end
@@ -638,6 +673,11 @@ end
 local function HandleCombatState(inCombat)
   local db = TokukoPDB.Embed
   if not db or not db.enabled then return end
+  -- EllesmereUI: size/position only -- no show/hide (Details' own toggle owns it).
+  if IsEUI() then
+    if not inCombat and embedPending then embedPending = false; DoEmbed() end
+    return
+  end
 
   -- embedPending: tried to embed during combat, retry now
   if not inCombat and embedPending then
@@ -669,6 +709,7 @@ end
 local function RehideEmbedded(delay)
   C_Timer.After(delay, function()
     if not embedded then return end
+    if IsEUI() then PositionFrames(); StartRepositionTimer(); return end
     local function rehideFrame(frame)
       if not frame then return end
       TryHideChrome(frame)
@@ -703,7 +744,7 @@ function EmbedModule.OnEvent(event, ...)
       if embedded then
         -- Loading screen: wait for Details to finish its own post-load restore.
         RehideEmbedded(4)
-      elseif not db.combatOnly then
+      elseif not db.combatOnly or IsEUI() then
         -- Initial login / UI reload: ElvUI ~1s, Details ~3-4s to fully restore.
         C_Timer.After(6, function()
           if db.enabled and not embedded and not InCombatLockdown() then

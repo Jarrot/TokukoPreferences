@@ -289,14 +289,13 @@ end
 local function EmbedPage()
   local db, EM = TokukoPDB.Embed, TokukoP.modules.Embed
   local function notDual() return not db.dualEmbed end
-  local help = "Embed Details! windows into the Second Chat Window (set it up on the Second Window tab first).\n\n"
-    .. "/tpembed toggles the embed. Showing/hiding the meters themselves works with Details' own toggle (e.g. a Details data-bar plugin)."
+  local help = "Fit Details! windows into the Second Chat Window (set it up on the Second Window tab first).\n\n"
+    .. "Only their size and position are changed - Details' own look, layering and show/hide stay as you set them in Details.\n\n"
+    .. "/tpembed toggles the embed."
   return {
     { header = "DETAILS EMBED", rows = {
       Toggle("Enable", help,
         function() return db.enabled end, function(v) EM.SetEnabled(v) end, WIDE_TIP),
-      Toggle("Hide Out of Combat", "Hide the meters out of combat, show them in combat. They stay embedded.",
-        function() return db.combatOnly end, function(v) EM.SetCombatOnly(v) end),
     } },
     { header = "WINDOWS", rows = {
       Slider("Details Window #1", "Left window, or the only one when not dual.", 1, 5, 1,

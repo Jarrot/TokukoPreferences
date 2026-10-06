@@ -827,9 +827,12 @@ local function BuildFallbackWindow()
     MakeCheckbox(c, "Dual Window Embed", nil,
       function() return TokukoPDB.Embed.dualEmbed end,
       function(v) TokukoPDB.Embed.dualEmbed = v end, y); y = y - 28
-    MakeCheckbox(c, "Hide Out of Combat", nil,
-      function() return TokukoPDB.Embed.combatOnly end,
-      function(v) TokukoPDB.Embed.combatOnly = v end, y); y = y - 28
+    -- Show/hide is ElvUI-only; under EllesmereUI the embed is size/position only.
+    if TokukoP.host == TokukoP.HOST_ELVUI then
+      MakeCheckbox(c, "Hide Out of Combat", nil,
+        function() return TokukoPDB.Embed.combatOnly end,
+        function(v) TokukoPDB.Embed.combatOnly = v end, y); y = y - 28
+    end
   end
 
   if active.HealerMana then

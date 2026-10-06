@@ -40,12 +40,13 @@ Load order: Core → DrinkingModule → TooltipModule → EmbedModule → Settin
 ## EmbedModule Architecture
 
 ### EllesmereUI path (added 2026-10-06)
-- `HOSTS = { elvui, ellesmere }`. Under EUI `panelFrame` = **`TokukoPEmbedHost`**, an invisible UIParent child laid NUMERICALLY over the Second Chat Window's rect (`SyncEUIHost`, scale-converted, secret-guarded). NEVER parent/anchor Details to a chat frame — EllesmereUIChat documents that insecure children of chat frames taint chat structurally.
-- Everything else runs unchanged against the host: GetTabHeight/GetDataBarHeight return 0 (no tabs parented to it, no RightChatDataPanel), PositionFrames anchors to host bottom, `>` toggle hook finds nothing.
-- Meters set to MEDIUM strata under EUI (EUI's chat panel paints at the chat frame's strata).
-- 0.2s ticker while embedded under EUI: re-syncs host (window moves/resizes/Unlock Mode/hidden) and `ReassertMeter` — if Details' own ShowWindow (e.g. Jarrot's Details data-bar broker toggle) reset parent/anchor/chrome, put it back. Skips meters with `ativa == false` (hidden on purpose).
-- Refuses to embed when the window is missing/docked/ChatFrame1 (prints a pointer to Chat > Second Window).
-- Settings: EUI Chat row → "Details" tab (enable, hide OOC, window #1/#2, dual, split).
+- `HOSTS = { elvui, ellesmere }`. Under EUI the embed is **SIZE AND POSITION ONLY** (Jarrot's rule): Details windows are anchored + sized (`ForceDetailsSize`) to **`TokukoPEmbedHost`**, an invisible UIParent child laid NUMERICALLY over the Second Chat Window's rect (`SyncEUIHost`, scale-converted, secret-guarded). NO SetParent, strata, chrome hiding, LockInstance, alpha, clamp, floatingframe or show/hide changes. Unembed (`RestorePositionOnly`) puts back only the saved point + size.
+- NEVER parent/anchor anything of ours to a chat frame — EllesmereUIChat documents that insecure children of chat frames taint chat structurally.
+- Separate `DoEmbedEUI`/`DoUnembedEUI`; the ElvUI functions are untouched. `PositionFrames` and the dual split are shared (tab height / RightChatDataPanel are 0/nil against the host).
+- 0.2s ticker while embedded: re-syncs the host (window moves/resizes/Unlock Mode/hidden) and re-anchors a meter whose first anchor is no longer the host (Details' own ShowWindow — Jarrot toggles meters with a Details data-bar broker).
+- `combatOnly` ("Hide Out of Combat") is ignored under EUI and hidden from both settings panels.
+- Refuses to embed when the window is missing/docked/ChatFrame1.
+- Settings: EUI Chat row → "Details" tab (enable, window #1/#2, dual, split).
 
 ### ElvUI path
 
