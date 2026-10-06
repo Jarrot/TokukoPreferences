@@ -14,7 +14,8 @@ CombatResModule.lua   — movable icons for battle-res charges + Shaman Reincarn
 PetReminderModule.lua — flashing warning when a Hunter/Warlock/Unholy DK has no active pet
 SoulstoneReminderModule.lua — whispers a configured player on pull countdown if nobody in the group has a Soulstone
 EditBoxModule.lua     — EllesmereUI only: fades out EUI data bars overlapped by the open chat edit box
-Settings.lua          — ElvUI AceConfig panel (/ec → Plugins → TokukoPreferences)
+Settings.lua          — ElvUI AceConfig panel (/ec → Plugins → TokukoPreferences) + standalone /tp window
+EllesmereSettings.lua — EllesmereUI options-panel section via EUI's Plugin API
 DebugModule.lua       — optional debug commands, commented out in TOC by default
 ```
 
@@ -94,6 +95,16 @@ Registers under `E.Options.args.TokukoPreferences` — appears in `/ec` sidebar 
 Flat single-page layout with section headers. Green `|cff00ff00Enable|r` toggle per module.
 Falls back to `BuildFallbackWindow()` if ElvUI not loaded (opened via `/tp`).
 
+## Settings under EllesmereUI (EllesmereSettings.lua)
+
+- Uses EUI's public **Plugin API** — guide at `Interface/AddOns/EllesmereUI/PLUGINS_API.md`. `EllesmereUI.RegisterPlugin("TokukoPreferences", { label, modules })` gives us our OWN sidebar section (plugins can never add rows to EUI's sections). One module (sidebar row) per active Tokuko module, single page "Settings".
+- Registered from `CreateSettingsPanel()` at PLAYER_LOGIN (needs `activeModules`). `/tp` → `EllesmereUI.OpenPlugin`.
+- Pages built with `EllesmereUI.Widgets` (only exists inside `buildPage`): `W:SectionHeader(parent, text, y)`, `W:DualRow(parent, y, leftCfg, rightCfg)` with cfg `{ type = toggle|slider|dropdown|colorpicker|input, text, tooltip, getValue, setValue, disabled, min/max/step, values/order, inputStyle/inputWidth }`. Each returns `frame, height`; buildPage returns total height.
+- `buildPage` also runs in EUI's search pre-build with a stub factory — no side effects while `EllesmereUI.IsSearchPrebuild()`.
+- Preview: entered on any of our pages; a 0.5s ticker exits it when `EllesmereUI:IsShown()` is false or `GetActiveModule()` is no longer `plugin:TokukoPreferences:*`. No hooks into EUI.
+- API guide asks plugins not to read `_`-prefixed EUI fields. Tooltip (`_applyTooltipCursorAnchor`) and EditBox (`_ModuleNS`) do — accepted risk; recheck after EUI updates.
+- Preview/exit iterate `activeModules`, never `modules` — a host-gated module has no db.
+
 ## ElvUI Skinning
 
 Uses `E:GetModule("Skins")` — methods: `S:HandleButton()`, `S:HandleCheckBox()`, `S:HandleEditBox()`, `S:HandleCloseButton()`
@@ -102,7 +113,8 @@ Frame backdrop: `frame:SetTemplate("Default")`
 ## Slash Commands
 
 - `/tpembed` — toggle embed on/off
-- `/tp` / `/tokukop` — open settings
+- `/tp` / `/tokukop` — open settings (ElvUI `/ec`, EllesmereUI plugin section, else standalone window)
+- `/tp window` — force the standalone window
 - `/tpss` — Soulstone reminder dry run: prints what the countdown check would do now, sends nothing
 - `/tpdebug` — state dump (DebugModule)
 - `/tpscan` — find Details frame globals (DebugModule)

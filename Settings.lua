@@ -962,21 +962,7 @@ local function BuildFallbackWindow()
   if active.Tooltip then
     MakeDivider(c, y); y = y - 14
     MakeHeader(c, "Tooltip", y); y = y - 26
-    -- Under EllesmereUI this drives EUI's own "Anchor to Cursor" flag, so
-    -- spell out which EUI settings it takes over and which still apply.
-    local tooltipHelp
-    if TokukoP.host == TokukoP.HOST_ELLESMERE then
-      tooltipHelp = "Tooltip follows the cursor out of combat and moves to its fixed position in combat.\n\n"
-        .. "|cffffd100Works through EllesmereUI's tooltip settings|r (Blizz UI Enhanced > Tooltips, Menus & Popups):\n"
-        .. "|cffff6060Anchor to Cursor|r - controlled by this option; changes there get overwritten at the next combat change.\n"
-        .. "|cff60ff60Cursor position / offsets|r (arrows icon) - used out of combat.\n"
-        .. "|cff60ff60Fixed position|r (drag the Tooltip box in Unlock Mode) - used in combat.\n"
-        .. "|cffff6060Reskin Tooltip|r - must be ON, otherwise this does nothing.\n"
-        .. "|cffaaaaaaShow Tooltips|r - set to Out of Combat or Never and there is no in-combat tooltip to move."
-    else
-      tooltipHelp = "Tooltip follows the cursor out of combat and moves to its fixed anchor position in combat."
-    end
-    MakeCheckbox(c, "Cursor Anchor Out of Combat", tooltipHelp,
+    MakeCheckbox(c, "Cursor Anchor Out of Combat", TokukoP.TooltipHelpText(),
       function() return TokukoPDB.Tooltip and TokukoPDB.Tooltip.enabled end,
       function(v)
         TokukoPDB.Tooltip.enabled = v
@@ -997,9 +983,32 @@ end
 
 local settingsPreviewActive = false
 
+-- Hover help for the tooltip option; shared by the /tp window and the
+-- EllesmereUI plugin page. Under EllesmereUI the option drives EUI's own
+-- "Anchor to Cursor" flag, so spell out which EUI settings it takes over.
+function TokukoP.TooltipHelpText()
+  if TokukoP.host == TokukoP.HOST_ELLESMERE then
+    return "Tooltip follows the cursor out of combat and moves to its fixed position in combat.\n\n"
+      .. "|cffffd100Works through EllesmereUI's tooltip settings|r (Blizz UI Enhanced > Tooltips, Menus & Popups):\n"
+      .. "|cffff6060Anchor to Cursor|r - controlled by this option; changes there get overwritten at the next combat change.\n"
+      .. "|cff60ff60Cursor position / offsets|r (arrows icon) - used out of combat.\n"
+      .. "|cff60ff60Fixed position|r (drag the Tooltip box in Unlock Mode) - used in combat.\n"
+      .. "|cffff6060Reskin Tooltip|r - must be ON, otherwise this does nothing.\n"
+      .. "|cffaaaaaaShow Tooltips|r - set to Out of Combat or Never and there is no in-combat tooltip to move."
+  end
+  return "Tooltip follows the cursor out of combat and moves to its fixed anchor position in combat."
+end
+
+function TokukoP.EnterSettingsPreview()
+  if settingsPreviewActive then return end
+  TokukoP.ToggleSettingsPreview()
+end
+
 function TokukoP.ToggleSettingsPreview()
   settingsPreviewActive = not settingsPreviewActive
-  for _, mod in pairs(TokukoP.modules) do
+  -- activeModules, not modules: a host-gated module never ran Initialize, so
+  -- its preview would index a nil db (PetReminder under EllesmereUI).
+  for _, mod in pairs(TokukoP.activeModules or {}) do
     if settingsPreviewActive then
       if mod.EnterPreview then mod.EnterPreview() end
     else
@@ -1011,7 +1020,7 @@ end
 function TokukoP.ExitSettingsPreview()
   if not settingsPreviewActive then return end
   settingsPreviewActive = false
-  for _, mod in pairs(TokukoP.modules) do
+  for _, mod in pairs(TokukoP.activeModules or {}) do
     if mod.ExitPreview then mod.ExitPreview() end
   end
 end
@@ -1020,7 +1029,10 @@ end
 -- Public API
 -- ===============================
 
-function TokukoP.OpenSettings()
+function TokukoP.OpenSettings(forceWindow)
+  if not forceWindow and TokukoP.OpenEllesmereSettings and TokukoP.OpenEllesmereSettings() then
+    return
+  end
   local E = GetE()
   if E then
     if not E.Options then
@@ -1040,7 +1052,13 @@ end
 
 function TokukoP.CreateSettingsPanel()
   local E = GetE()
-  if not E then return end
+  if not E then
+    -- EllesmereUI: our own section in its options panel (EllesmereSettings.lua).
+    if TokukoP.host == TokukoP.HOST_ELLESMERE and TokukoP.RegisterEllesmerePlugin then
+      TokukoP.RegisterEllesmerePlugin()
+    end
+    return
+  end
   -- Register with LibElvUIPlugin so our section appears in /ec
   local EP = LibStub and LibStub("LibElvUIPlugin-1.0", true)
   if EP then
@@ -1086,6 +1104,7 @@ end
 -- ===============================
 SLASH_TOKUKOP1 = "/tokukop"
 SLASH_TOKUKOP2 = "/tp"
-SlashCmdList["TOKUKOP"] = function()
-  TokukoP.OpenSettings()
+SlashCmdList["TOKUKOP"] = function(msg)
+  -- "/tp window": the standalone window even when a host panel exists.
+  TokukoP.OpenSettings(strtrim(msg or ""):lower() == "window")
 end
