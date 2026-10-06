@@ -951,6 +951,14 @@ local function BuildFallbackWindow()
       function(v) TokukoPDB.SoulstoneReminder.message = v end, y); y = y - 44
   end
 
+  if active.EditBox then
+    MakeDivider(c, y); y = y - 14
+    MakeHeader(c, "Chat Edit Box", y); y = y - 26
+    MakeCheckbox(c, "Hide Data Bars Under Edit Box", "While typing in chat, fade out any EllesmereUI data bar the edit box overlaps (like ElvUI's edit box covering its datatext panel).",
+      function() return TokukoPDB.EditBox.enabled end,
+      function(v) TokukoP.modules.EditBox.SetEnabled(v) end, y); y = y - 28
+  end
+
   if active.Tooltip then
     MakeDivider(c, y); y = y - 14
     MakeHeader(c, "Tooltip", y); y = y - 26

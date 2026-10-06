@@ -57,6 +57,13 @@ Whispers a chosen player when a pull countdown starts and nobody in the raid has
 - Stays silent if aura data can't be read reliably — never whispers on bad data
 - `/tpss` dry run prints what the check would do right now without whispering
 
+### Chat Edit Box (EllesmereUI only)
+Lets the chat edit box sit on top of a data bar, like ElvUI's edit box covering its datatext panel.
+
+- While you type, any EllesmereUI data bar the edit box overlaps fades out; it comes back when the box closes
+- Bars keep their own Visibility setting (mouseover, combat, etc.) — that's re-applied on close
+- Combat-safe (alpha only) and doesn't touch chat sending, so no taint in encounter/M+ chat lockdown
+
 ### Tooltip
 Anchors the tooltip to your cursor when out of combat, snapping to the fixed ElvUI anchor position during combat.
 

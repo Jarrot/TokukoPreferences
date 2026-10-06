@@ -13,6 +13,7 @@ HealerManaModule.lua  — movable overlay listing group/raid healers sorted by m
 CombatResModule.lua   — movable icons for battle-res charges + Shaman Reincarnation cooldown
 PetReminderModule.lua — flashing warning when a Hunter/Warlock/Unholy DK has no active pet
 SoulstoneReminderModule.lua — whispers a configured player on pull countdown if nobody in the group has a Soulstone
+EditBoxModule.lua     — EllesmereUI only: fades out EUI data bars overlapped by the open chat edit box
 Settings.lua          — ElvUI AceConfig panel (/ec → Plugins → TokukoPreferences)
 DebugModule.lua       — optional debug commands, commented out in TOC by default
 ```
@@ -20,7 +21,7 @@ DebugModule.lua       — optional debug commands, commented out in TOC by defau
 ## Key Globals
 
 - `TokukoP` — addon namespace, `TokukoP.modules` holds all module references
-- `TokukoPDB` — SavedVariables, sub-tables: `Drinking`, `Embed`, `Tooltip`, `HealerMana`, `CombatRes`, `PetReminder`, `SoulstoneReminder`
+- `TokukoPDB` — SavedVariables, sub-tables: `Drinking`, `Embed`, `Tooltip`, `HealerMana`, `CombatRes`, `PetReminder`, `SoulstoneReminder`, `EditBox`
 - `RightChatPanel` — ElvUI's right chat panel frame (confirmed global name)
 - `RightChatDataPanel` — ElvUI's data bar at bottom of right panel
 - `DetailsBaseFrame1/2` — Details! window frames
@@ -127,6 +128,13 @@ Frame backdrop: `frame:SetTemplate("Default")`
 - Soulstone buff = spell 20707 on the soulstoned unit. Scan uses `C_UnitAuras.GetUnitAuraBySpellID(unit, 20707)` (2-arg form, as EllesmereUIAuraBuffReminders uses it), falling back to a `GetAuraDataByIndex` HELPFUL walk. Group auras are readable **out of combat**; `C_Secrets.ShouldAurasBeSecret()` flips in combat in instanced content. A countdown is OOC by definition (DBM also ignores it in combat), so this is safe — but any secret/erroring result makes the check return **nil = don't whisper**, never a false accusation.
 - Whisper target is `GetUnitName(unit, true)` (`Name-Realm` cross-realm, `Name` same realm). Configured name is matched case-insensitively with any realm suffix stripped.
 - 20s repeat cooldown: countdowns get cancelled/re-sent.
+
+## EditBoxModule Notes (EllesmereUI)
+
+- Never `HookScript` a chat edit box: it taints the chat-type attribute and sends get silently swallowed in encounter/M+/PvP chat lockdown (documented in EllesmereUIChat). Use `EventRegistry` callbacks `ChatFrame.OnEditBoxShow/Hide` — they run through `securecallfunction`. Filter to ChatFrame1-10 boxes (temp whisper windows carry secret BN tell targets).
+- EUI data bars are `EllesmereUIDataBarsBar<id>`; ids from `EllesmereUI._ModuleNS.EllesmereUIDataBars.BarsInOrder()`. Hide via **SetAlpha only** — bars with secure blocks (micromenu, hearth) are implicitly protected, Show/Hide in combat is blocked. EUI's own visibility engine is alpha-only for the same reason.
+- Restore by calling the DataBars `ns.UpdateAllBarVisibility()` (respects the bar's own mouseover/combat rules); post-hook the same function to re-fade while still typing.
+- Known gap: a **mouseover**-visibility bar fades back in if hovered while typing (EUI's mouseover poll calls a local we can't reach). Bar content stays clickable while faded; if clicks land on the bar instead of the edit box, set the bar's Strata lower in EUI.
 
 ## Git Branches
 
