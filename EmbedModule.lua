@@ -13,10 +13,14 @@ TokukoP.modules.Embed = EmbedModule
 -- EllesmereUI: there is no right panel -- EUI paints a backdrop behind each
 -- Blizzard chat window -- so the host is an invisible frame of OURS laid
 -- numerically over the Second Chat Window's rect (see "EllesmereUI host").
--- Under EUI the embed does SIZE AND POSITION ONLY (Jarrot's call): Details
--- windows are anchored to that frame and sized to it -- never reparented, no
--- strata, chrome, lock, alpha, clamp or show/hide changes. Positioning and
--- the dual split reuse PositionFrames; the ElvUI-only bits (chat-tab height,
+-- Under EUI the embed is a one-shot FIT, run only when a setting changes
+-- (Jarrot's rule, same as the chat window): size + position the Details
+-- windows over the chat window, have Details save that as its own position
+-- (SaveMainWindowPosition) and hand them back to Details' own anchoring
+-- (RestoreMainWindowPosition). Details restores it at every login; after the
+-- fit nothing of ours touches them -- no ticker, no login re-embed, never
+-- reparented, no strata/chrome/lock/alpha/clamp/show-hide. The fit math
+-- reuses PositionFrames; the ElvUI-only bits (chat-tab height,
 -- RightChatDataPanel, the ">" toggle) find nothing under EUI and drop out.
 EmbedModule.HOSTS = { elvui = true, ellesmere = true }
 
@@ -89,15 +93,12 @@ end
 -- its rect chain: EllesmereUIChat documents that an insecure frame parented
 -- to a Blizzard chat frame taints chat "from structure" (whispers/sends
 -- break in encounter lockdown). EUI places its own chat panel NUMERICALLY
--- from the chat frame's rect for the same reason; so do we. A light ticker
--- keeps the host on the window (moves, resizes, Unlock Mode, show/hide) and
--- re-anchors a meter whose position Details reset (its own ShowWindow, e.g.
--- from a Details data-bar toggle).
+-- from the chat frame's rect for the same reason; so do we. The host only
+-- exists to compute the fit; the meters are detached from it right after.
 
 local IsEUI = function() return TokukoP.host == TokukoP.HOST_ELLESMERE end
 
 local euiHost        = nil
-local euiTicker      = nil
 local lastRect       = nil   -- "l,b,w,h" cache so we only re-place on change
 local PositionFrames -- forward declaration (defined under Positioning)
 
@@ -142,28 +143,6 @@ local function SyncEUIHost()
   end
   host:SetShown(cf:IsShown())
   return true
-end
-
--- Details re-shown by something else (its own toggle, a data-bar broker)
--- re-anchors itself to its saved spot; put the position back. Position only.
-local function ReassertMeter(frame)
-  if not frame then return end
-  local _, rel = frame:GetPoint(1)
-  if rel ~= euiHost then PositionFrames() end
-end
-
-local function StartEUITicker(meters)
-  if euiTicker then return end
-  euiTicker = C_Timer.NewTicker(0.2, function()
-    SyncEUIHost()
-    local m1, m2 = meters()
-    ReassertMeter(m1)
-    ReassertMeter(m2)
-  end)
-end
-
-local function StopEUITicker()
-  if euiTicker then euiTicker:Cancel(); euiTicker = nil end
 end
 
 -- The panel the embed lives in for the current host.
@@ -450,8 +429,19 @@ end
 -- Embed / Un-embed
 -- ===============================
 
--- EllesmereUI: size and position only. Anchor + size the Details windows to
--- our host; touch nothing else about them.
+-- EllesmereUI: one-shot fit. Lay the meters over the host (PositionFrames),
+-- let the anchors resolve, then have Details save the result as its own
+-- position and re-anchor itself from it -- after which nothing of ours is
+-- attached to the meters.
+local function DetailsAdopt(frame)
+  local inst = frame and (frame._instance or frame.instance)
+  if not inst then return end
+  pcall(function()
+    inst:SaveMainWindowPosition()
+    inst:RestoreMainWindowPosition()
+  end)
+end
+
 local function DoEmbedEUI()
   local db = TokukoPDB.Embed
   panelFrame = GetHostPanel()
@@ -465,13 +455,11 @@ local function DoEmbedEUI()
     print("|cffff6600TokukoP Embed:|r Could not find Details window " .. tostring(db.window1) .. ".")
     return
   end
-  SaveOriginalPosition(meterFrame1, 1)
   meterFrame2 = nil
   if db.dualEmbed then
     local frame2 = GetDetailsFrame(db.window2)
     if frame2 and frame2 ~= meterFrame1 then
       meterFrame2 = frame2
-      SaveOriginalPosition(meterFrame2, 2)
     else
       print("|cffff6600TokukoP Embed:|r Could not find Details window "
             .. tostring(db.window2) .. ". Single embed only.")
@@ -479,27 +467,28 @@ local function DoEmbedEUI()
   end
   embedded = true
   PositionFrames()
-  StartEUITicker(function() return meterFrame1, meterFrame2 end)
-  StartRepositionTimer()
+  local m1, m2 = meterFrame1, meterFrame2
+  C_Timer.After(0.1, function()
+    DetailsAdopt(m1)
+    DetailsAdopt(m2)
+  end)
 end
 
--- Put position and size back exactly as they were; nothing else was changed.
-local function RestorePositionOnly(frame, slot)
-  local orig = slot == 1 and origPoint1 or origPoint2
-  if not frame or not orig or not orig.point then return end
-  frame:ClearAllPoints()
-  frame:SetPoint(orig.point, orig.relativeTo or UIParent,
-                 orig.relPoint or orig.point, orig.x or 0, orig.y or 0)
-  ForceDetailsSize(frame, orig.w or 300, orig.h or 200)
-end
-
+-- Turning the fit off leaves the windows exactly where they are (Details
+-- already saved that position); nothing to undo.
 local function DoUnembedEUI()
   embedded = false
-  StopEUITicker()
-  if repositionTimer then repositionTimer:Cancel(); repositionTimer = nil end
-  RestorePositionOnly(meterFrame1, 1)
-  RestorePositionOnly(meterFrame2, 2)
   meterFrame1, meterFrame2 = nil, nil
+end
+
+-- Re-fit when the chat window changes or the user asks (Fit Now).
+function EmbedModule.Fit()
+  if not IsEUI() then return end
+  local db = TokukoPDB.Embed
+  if not (db and db.enabled) then return end
+  if InCombatLockdown() then embedPending = true; return end
+  embedded = false
+  DoEmbedEUI()
 end
 
 local function DoEmbed()
@@ -706,7 +695,7 @@ local function HandleCombatState(inCombat)
   if not db or not db.enabled then return end
   -- EllesmereUI: size/position only -- no show/hide (Details' own toggle owns it).
   if IsEUI() then
-    if not inCombat and embedPending then embedPending = false; DoEmbed() end
+    if not inCombat and embedPending then embedPending = false; EmbedModule.Fit() end
     return
   end
 
@@ -740,7 +729,7 @@ end
 local function RehideEmbedded(delay)
   C_Timer.After(delay, function()
     if not embedded then return end
-    if IsEUI() then PositionFrames(); StartRepositionTimer(); return end
+    if IsEUI() then return end  -- Details restores its own saved position
     local function rehideFrame(frame)
       if not frame then return end
       TryHideChrome(frame)
@@ -775,7 +764,7 @@ function EmbedModule.OnEvent(event, ...)
       if embedded then
         -- Loading screen: wait for Details to finish its own post-load restore.
         RehideEmbedded(4)
-      elseif not db.combatOnly or IsEUI() then
+      elseif not db.combatOnly and not IsEUI() then
         -- Initial login / UI reload: ElvUI ~1s, Details ~3-4s to fully restore.
         C_Timer.After(6, function()
           if db.enabled and not embedded and not InCombatLockdown() then

@@ -40,14 +40,12 @@ Load order: Core → DrinkingModule → TooltipModule → EmbedModule → Settin
 ## EmbedModule Architecture
 
 ### EllesmereUI path (added 2026-10-06)
-- `HOSTS = { elvui, ellesmere }`. Under EUI the embed is **SIZE AND POSITION ONLY** (Jarrot's rule): Details windows are anchored + sized (`ForceDetailsSize`) to **`TokukoPEmbedHost`**, an invisible UIParent child laid NUMERICALLY over the Second Chat Window's rect (`SyncEUIHost`, scale-converted, secret-guarded). NO SetParent, strata, chrome hiding, LockInstance, alpha, clamp, floatingframe or show/hide changes. Unembed (`RestorePositionOnly`) puts back only the saved point + size.
+- `HOSTS = { elvui, ellesmere }`. Under EUI the embed is a **one-shot FIT run only on setting changes** (Jarrot's rule, same as ChatWindowModule): Details tab settings, Fit Now, or a ChatWindow apply (`ChatWindowModule.ApplyNow` → `EmbedModule.Fit` after 0.15s). Nothing at login/loading screens/PLAYER_ALIVE, no ticker.
+- Fit = `PositionFrames()` against **`TokukoPEmbedHost`** (invisible UIParent child laid NUMERICALLY over the Second Chat Window's rect via `SyncEUIHost`), then after 0.1s `inst:SaveMainWindowPosition()` + `inst:RestoreMainWindowPosition()` (`DetailsAdopt`): Details saves the fitted rect as its own position (posicao + LibWindow) and re-anchors itself from it, so nothing of ours stays attached and Details restores it every login. User locks windows in Details.
+- **Size + position only:** NO SetParent, strata, chrome hiding, LockInstance, alpha, clamp, floatingframe or show/hide. `combatOnly` ignored + hidden from settings. Turning the embed off leaves the windows where they are.
 - NEVER parent/anchor anything of ours to a chat frame — EllesmereUIChat documents that insecure children of chat frames taint chat structurally.
-- Separate `DoEmbedEUI`/`DoUnembedEUI`; the ElvUI functions are untouched. `PositionFrames` and the dual split are shared (tab height / RightChatDataPanel are 0/nil against the host).
-- 0.2s ticker while embedded: re-syncs the host (window moves/resizes/Unlock Mode/hidden) and re-anchors a meter whose first anchor is no longer the host (Details' own ShowWindow — Jarrot toggles meters with a Details data-bar broker).
-- `combatOnly` ("Hide Out of Combat") is ignored under EUI and hidden from both settings panels.
-- **Fit:** Details' title bar / toolbar / status bar sit OUTSIDE its base frame (title bar anchored bottom-to-top of it). Under ElvUI they fit because the embed starts below the right panel's tab strip (`yOff = -tabH`) — the title bar sat in the tab-strip space. The EUI host is only the chat frame's text rect, so `ChromeInsets()` keeps room inside it: top = max(20 toolbar, titlebar_height if shown) when `toolbar_side == 1`; bottom += 20 if `toolbar_side == 2`, += 14 if `show_statusbar` (Details' own clamp math). Plus user `topAdjust`/`bottomAdjust` sliders.
-- Refuses to embed when the window is missing/docked/ChatFrame1.
-- Settings: EUI Chat row → "Details" tab (enable, window #1/#2, dual, split).
+- **Fit:** Details' title bar / toolbar / status bar sit OUTSIDE its base frame (title bar anchored bottom-to-top of it). Under ElvUI they fit because the embed starts below the right panel's tab strip (`yOff = -tabH`). The EUI host is only the chat frame's text rect, so `ChromeInsets()` keeps room inside it: top = max(20 toolbar, titlebar_height if shown) when `toolbar_side == 1`; bottom += 20 if `toolbar_side == 2`, += 14 if `show_statusbar` (Details' own clamp math), plus `topAdjust`/`bottomAdjust`. Jarrot chose "whole window inside" over "title bar over the tab strip" (2026-10-06).
+- Refuses when the window is missing/docked/ChatFrame1. Settings: EUI Chat row → "Details" tab.
 
 ### ElvUI path
 

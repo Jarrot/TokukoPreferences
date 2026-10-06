@@ -149,6 +149,12 @@ local function ApplyNow()
     SetChatWindowSavedDimensions(id, w, h)
   end
   NudgeEUIChat()
+  -- A window setting changed: re-fit the Details embed to it (EUI only;
+  -- no-op when the embed is off). After the anchors resolve.
+  local EM = TokukoP.modules.Embed
+  if EM and EM.Fit and TokukoP.activeModules and TokukoP.activeModules.Embed then
+    C_Timer.After(0.15, EM.Fit)
+  end
 end
 
 -- Deferred one frame: never run inside a Blizzard chat/dock pass.

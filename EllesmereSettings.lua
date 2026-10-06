@@ -289,34 +289,36 @@ end
 local function EmbedPage()
   local db, EM = TokukoPDB.Embed, TokukoP.modules.Embed
   local function notDual() return not db.dualEmbed end
+  local function fit() EM.Fit() end
   local help = "Fit Details! windows into the Second Chat Window (set it up on the Second Window tab first).\n\n"
-    .. "Only their size and position are changed - Details' own look, layering and show/hide stay as you set them in Details.\n\n"
-    .. "/tpembed toggles the embed."
+    .. "The fit runs when a setting here or on the Second Window tab changes, or with Fit Now. Details then saves it as its own position - nothing is re-applied at login, so lock the windows in Details as usual.\n\n"
+    .. "Only size and position are changed - Details' look, layering and show/hide stay as you set them in Details. Turning this off leaves the windows where they are."
   return {
     { header = "DETAILS EMBED", rows = {
       Toggle("Enable", help,
         function() return db.enabled end, function(v) EM.SetEnabled(v) end, WIDE_TIP),
+      Button("Fit Details Now", "Fit Now", "Fit the Details windows into the chat window again (e.g. after moving the window by hand).", fit),
     } },
     { header = "WINDOWS", rows = {
       Slider("Details Window #1", "Left window, or the only one when not dual.", 1, 5, 1,
-        function() return db.window1 or 1 end, function(v) db.window1 = v; EM.Reapply() end),
-      Toggle("Dual Window", "Embed two Details windows side by side.",
+        function() return db.window1 or 1 end, function(v) db.window1 = v; fit() end),
+      Toggle("Dual Window", "Fit two Details windows side by side.",
         function() return db.dualEmbed end,
-        function(v) db.dualEmbed = v; EM.Reapply(); Refresh() end),
+        function(v) db.dualEmbed = v; fit(); Refresh() end),
       { type = "slider", text = "Details Window #2", tooltip = "Right window.", min = 1, max = 5, step = 1,
         disabled = notDual,
         getValue = function() return db.window2 or 2 end,
-        setValue = function(v) db.window2 = v; EM.Reapply() end },
+        setValue = function(v) db.window2 = v; fit() end },
       { type = "slider", text = "Split (left %)", min = 20, max = 80, step = 1,
         disabled = notDual,
         getValue = function() return math.floor((db.splitRatio or 0.5) * 100 + 0.5) end,
-        setValue = function(v) db.splitRatio = v / 100; EM.Reposition() end },
+        setValue = function(v) db.splitRatio = v / 100; fit() end },
     } },
     { header = "FIT", rows = {
       Slider("Top Space Adjust", "Extra room above the meters for Details' title bar / toolbar, on top of what Details' own settings report. Negative = less.", -30, 30, 1,
-        function() return db.topAdjust or 0 end, function(v) db.topAdjust = v; EM.Reposition() end),
+        function() return db.topAdjust or 0 end, function(v) db.topAdjust = v; fit() end),
       Slider("Bottom Space Adjust", "Extra room below the meters (Details' bottom toolbar / status bar). Negative = less.", -30, 30, 1,
-        function() return db.bottomAdjust or 0 end, function(v) db.bottomAdjust = v; EM.Reposition() end),
+        function() return db.bottomAdjust or 0 end, function(v) db.bottomAdjust = v; fit() end),
     } },
   }
 end
