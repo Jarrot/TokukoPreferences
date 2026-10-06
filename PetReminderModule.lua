@@ -8,6 +8,11 @@ local TokukoP = TokukoP
 local PetReminderModule = {}
 TokukoP.modules.PetReminder = PetReminderModule
 
+-- Off under EllesmereUI: its AuraBuffReminders addon already has a "Missing
+-- Pet" reminder (Hunter/Warlock/DK/Mage) that is click-to-summon, so running
+-- both would just double up the warning.
+PetReminderModule.HOSTS = { elvui = true, none = true }
+
 -- ===============================
 -- Constants
 -- ===============================

@@ -118,6 +118,7 @@ Frame backdrop: `frame:SetTemplate("Default")`
 - `UnitPowerPercent` returns **0–1** in 12.x (not 0–100) — multiply by 100 before displaying
 - For non-player units, `UnitPowerPercent` returns a **secret value** — arithmetic blocked. `tonumber(tostring(secret))` does NOT work (tainted string blocks tonumber too). Correct workaround: `tonumber(string.format("%.4f", raw))` — `string.format` accepts secrets and produces an untainted string
 - `UNIT_DIED`'s unit arg is a **secret string** in 12.x — comparing it (`unitID ~= "pet"`) taints execution and errors. Can't `RegisterUnitEvent("UNIT_DIED", ...)` either. So don't identify the dead unit: on `UNIT_DIED` just re-check your own state (PetReminder re-runs `RefreshDisplay`, which plays the pet-lost sound on a `petWasPresent → not HasPet()` transition). Note `UNIT_PET`/`PLAYER_SPECIALIZATION_CHANGED` unit args are `"player"` and NOT secret, so those comparisons are fine.
+- PetReminder is gated `HOSTS = { elvui, none }` — off under EllesmereUI, whose AuraBuffReminders "Missing Pet" (click-to-summon) covers it
 
 ## SoulstoneReminder Notes
 
