@@ -1020,7 +1020,7 @@ end
 function TokukoP.EditBoxHelpText()
   local GOLD = "|cffffd100"
   return "While typing in chat (Enter until Esc / send), keep the edit box on top of any data bar under it.\n\n"
-    .. GOLD .. "Cover with Background|r - gives the edit box its own background above the bars. Only covers the edit box's area.\n\n"
+    .. GOLD .. "Cover Bars with Background|r - puts a background exactly over each data bar under the edit box (pick the bar's colour to blend in). The edit box itself is not moved or resized.\n\n"
     .. GOLD .. "Fade Data Bars|r - fades out every data bar the edit box overlaps, whole bar. Uses EllesmereUI internals, so an EUI update may break it."
 end
 

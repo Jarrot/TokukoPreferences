@@ -60,7 +60,7 @@ Whispers a chosen player when a pull countdown starts and nobody in the raid has
 ### Chat Edit Box (EllesmereUI only)
 Lets the chat edit box sit on top of a data bar, like ElvUI's edit box covering its datatext panel.
 
-- **Cover** (default): while you type, the edit box gets its own background (colour + opacity configurable) on a layer above the data bars
+- **Cover** (default): while you type, each data bar under the edit box gets a background laid exactly over it (colour + opacity configurable), with the edit box on top. The edit box itself is never moved or resized
 - **Fade**: while you type, any EllesmereUI data bar the edit box overlaps fades out, and its own Visibility setting is re-applied on close. Relies on EllesmereUI internals, so an EUI update could break it
 - Doesn't touch chat sending, so no taint in encounter/M+ chat lockdown
 

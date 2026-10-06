@@ -3,10 +3,12 @@
 -- type (Enter pressed, until Esc / send), like ElvUI's edit box covering its
 -- datatext panel. Two modes:
 --
---   "cover" (default) -- ElvUI's approach: while active, the edit box gets an
---     opaque background of our own and is raised to DIALOG strata, so it
---     draws over the bar. Touches only Blizzard's edit box and our own
---     texture; nothing of EllesmereUI's. Covers only the edit box's rect.
+--   "cover" (default) -- while active, every visible EllesmereUI data bar the
+--     edit box overlaps gets an opaque backdrop frame of ours pinned to it
+--     (exact fit, whatever the bar's size), and the edit box is raised above
+--     that. The edit box's size/position are NOT touched -- EllesmereUIChat
+--     owns them as part of the chat window. Bars are found by their public
+--     frame names, so no EUI internals.
 --   "fade" -- fades out every EllesmereUI data bar the edit box overlaps.
 --     Hides the whole bar even if it is bigger than the box, but has to reach
 --     EUI internals (_ModuleNS, a post-hook on the DataBars visibility pass),
@@ -33,18 +35,25 @@ EditBoxModule.HOSTS = { ellesmere = true }
 local DATABARS_ADDON = "EllesmereUIDataBars"
 local BAR_FRAME_PREFIX = "EllesmereUIDataBarsBar"  -- .. bar id (EllesmereUIDataBars.lua)
 
--- Above every normal bar strata choice (EUI's Bar Strata goes higher, but a
--- data bar up there is unusual).
-local COVER_STRATA = "DIALOG"
+-- Layering while typing: bar (EUI default MEDIUM, level 10) < our backdrop
+-- (HIGH, high level) < edit box (DIALOG). A bar set to DIALOG strata or
+-- above in EUI would win -- unusual for a data bar.
+local BACKDROP_STRATA = "HIGH"
+local BACKDROP_LEVEL  = 500
+local EDITBOX_STRATA  = "DIALOG"
 
-EditBoxModule.MODE_VALUES  = { cover = "Cover with Background", fade = "Fade Data Bars" }
+-- Bar ids are monotonic and never reused (EllesmereUIDataBars.lua), so deleted
+-- bars leave gaps; probe this many names. A _G lookup each, once per Enter.
+local MAX_BAR_ID = 200
+
+EditBoxModule.MODE_VALUES  = { cover = "Cover Bars with Background", fade = "Fade Data Bars" }
 EditBoxModule.MODE_SORTING = { "cover", "fade" }
 
 local DEFAULTS = {
   enabled = true,
   mode    = "cover",
   -- EllesmereUIChat's default panel colour, made opaque so the bar does not
-  -- show through.
+  -- show through. Pick the bar's own colour to make it blend in.
   bgColor = { r = 0.03, g = 0.045, b = 0.05 },
   bgAlpha = 1,
 }
@@ -55,8 +64,8 @@ local DEFAULTS = {
 
 local db        = nil
 local hidden    = {}     -- fade: bar frame -> true while we hold it at alpha 0
-local covered   = {}     -- cover: edit box -> its original strata
-local covers    = {}     -- cover: edit box -> our background texture
+local raised    = {}     -- cover: edit box -> its original strata
+local backdrops = {}     -- cover: bar frame -> our backdrop frame
 local typing    = false  -- a permanent chat edit box is active
 local hooked    = false
 local fadeHooked = false
@@ -85,50 +94,8 @@ local function AnyPermanentEditBoxActive(except)
 end
 
 -- ===============================
--- Cover mode
+-- Shared: finding bars
 -- ===============================
-
-local function ApplyCoverColor(tex)
-  local c = db.bgColor
-  tex:SetColorTexture(c.r, c.g, c.b, db.bgAlpha)
-end
-
-local function CoverOn(eb)
-  local tex = covers[eb]
-  if not tex then
-    -- Lowest sublayer so the edit box's own text and header draw on top.
-    tex = eb:CreateTexture(nil, "BACKGROUND", nil, -8)
-    tex:SetAllPoints(eb)
-    covers[eb] = tex
-  end
-  ApplyCoverColor(tex)
-  tex:Show()
-  if not covered[eb] then
-    covered[eb] = eb:GetFrameStrata()
-    eb:SetFrameStrata(COVER_STRATA)
-  end
-end
-
-local function CoverOff(eb)
-  if covers[eb] then covers[eb]:Hide() end
-  if covered[eb] then
-    eb:SetFrameStrata(covered[eb])
-    covered[eb] = nil
-  end
-end
-
-local function CoverOffAll()
-  for eb in pairs(covered) do CoverOff(eb) end
-  for _, tex in pairs(covers) do tex:Hide() end
-end
-
--- ===============================
--- Fade mode (EUI internals)
--- ===============================
-
-local function DataBarsNS()
-  return EllesmereUI and EllesmereUI._ModuleNS and EllesmereUI._ModuleNS[DATABARS_ADDON]
-end
 
 -- Screen-space rect (frames can sit under different effective scales).
 local function ScreenRect(f)
@@ -143,6 +110,72 @@ local function Overlaps(a, b)
   local bl, bb, br, bt = ScreenRect(b)
   if not (al and bl) then return false end
   return al < br and bl < ar and ab < bt and bb < at
+end
+
+-- ===============================
+-- Cover mode
+-- ===============================
+
+local function ApplyBackdropColor(bd)
+  local c = db.bgColor
+  bd.tex:SetColorTexture(c.r, c.g, c.b, db.bgAlpha)
+end
+
+local function GetBackdrop(bar)
+  local bd = backdrops[bar]
+  if not bd then
+    bd = CreateFrame("Frame", nil, UIParent)
+    bd:SetFrameStrata(BACKDROP_STRATA)
+    bd:SetFrameLevel(BACKDROP_LEVEL)
+    bd:SetAllPoints(bar)          -- exact fit; follows the bar if it moves
+    bd:EnableMouse(true)          -- swallow clicks meant for the hidden bar
+    bd.tex = bd:CreateTexture(nil, "BACKGROUND")
+    bd.tex:SetAllPoints()
+    bd:Hide()
+    backdrops[bar] = bd
+  end
+  return bd
+end
+
+-- Visible = shown and not faded out by the bar's own Visibility setting
+-- (EUI hides bars by alpha). A hidden bar needs no cover.
+local function BarVisible(f)
+  return f:IsVisible() and f:GetEffectiveAlpha() > 0
+end
+
+local function CoverOn(eb)
+  for id = 1, MAX_BAR_ID do
+    local bar = _G[BAR_FRAME_PREFIX .. id]
+    if bar and BarVisible(bar) and Overlaps(eb, bar) then
+      local bd = GetBackdrop(bar)
+      ApplyBackdropColor(bd)
+      bd:Show()
+    end
+  end
+  if not raised[eb] then
+    raised[eb] = eb:GetFrameStrata()
+    eb:SetFrameStrata(EDITBOX_STRATA)
+  end
+end
+
+local function CoverOff(eb)
+  if raised[eb] then
+    eb:SetFrameStrata(raised[eb])
+    raised[eb] = nil
+  end
+end
+
+local function CoverOffAll()
+  for eb in pairs(raised) do CoverOff(eb) end
+  for _, bd in pairs(backdrops) do bd:Hide() end
+end
+
+-- ===============================
+-- Fade mode (EUI internals)
+-- ===============================
+
+local function DataBarsNS()
+  return EllesmereUI and EllesmereUI._ModuleNS and EllesmereUI._ModuleNS[DATABARS_ADDON]
 end
 
 -- Every live EllesmereUI data bar frame, via the module's own bar list.
@@ -231,6 +264,7 @@ local function OnEditBoxInactive(_, eb)
   CoverOff(eb)
   if AnyPermanentEditBoxActive(eb) then return end
   typing = false
+  for _, bd in pairs(backdrops) do bd:Hide() end
   FadeRestore()
 end
 
@@ -262,9 +296,9 @@ function EditBoxModule.SetMode(v)
   RestoreAll()
 end
 
--- Colour / opacity change: repaint any visible cover.
+-- Colour / opacity change: repaint the backdrops.
 function EditBoxModule.RefreshCover()
-  for _, tex in pairs(covers) do ApplyCoverColor(tex) end
+  for _, bd in pairs(backdrops) do ApplyBackdropColor(bd) end
 end
 
 -- ===============================
