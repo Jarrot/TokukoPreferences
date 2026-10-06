@@ -962,7 +962,21 @@ local function BuildFallbackWindow()
   if active.Tooltip then
     MakeDivider(c, y); y = y - 14
     MakeHeader(c, "Tooltip", y); y = y - 26
-    MakeCheckbox(c, "Cursor Anchor Out of Combat", nil,
+    -- Under EllesmereUI this drives EUI's own "Anchor to Cursor" flag, so
+    -- spell out which EUI settings it takes over and which still apply.
+    local tooltipHelp
+    if TokukoP.host == TokukoP.HOST_ELLESMERE then
+      tooltipHelp = "Tooltip follows the cursor out of combat and moves to its fixed position in combat.\n\n"
+        .. "|cffffd100Works through EllesmereUI's tooltip settings|r (Blizz UI Enhanced > Tooltips, Menus & Popups):\n"
+        .. "|cffff6060Anchor to Cursor|r - controlled by this option; changes there get overwritten at the next combat change.\n"
+        .. "|cff60ff60Cursor position / offsets|r (arrows icon) - used out of combat.\n"
+        .. "|cff60ff60Fixed position|r (drag the Tooltip box in Unlock Mode) - used in combat.\n"
+        .. "|cffff6060Reskin Tooltip|r - must be ON, otherwise this does nothing.\n"
+        .. "|cffaaaaaaShow Tooltips|r - set to Out of Combat or Never and there is no in-combat tooltip to move."
+    else
+      tooltipHelp = "Tooltip follows the cursor out of combat and moves to its fixed anchor position in combat."
+    end
+    MakeCheckbox(c, "Cursor Anchor Out of Combat", tooltipHelp,
       function() return TokukoPDB.Tooltip and TokukoPDB.Tooltip.enabled end,
       function(v)
         TokukoPDB.Tooltip.enabled = v
