@@ -349,13 +349,9 @@ local ROWS = {
     pages = {
       { name = "Settings", modules = {
         { module = "HealerMana",        title = "HEALER MANA",        build = HealerManaPage },
-        -- Three small modules under one header; their "Enable" rows are
-        -- renamed so it stays clear which toggle is which.
-        { title = "GROUP TOOLS", parts = {
-          { module = "CombatRes",         build = CombatResPage, enable = "Combat Res" },
-          { module = "SoulstoneReminder", build = SoulstonePage, enable = "Soulstone Reminder" },
-          { module = "Drinking",          build = DrinkingPage,  enable = "Drinking Announcements" },
-        } },
+        { module = "CombatRes",         title = "COMBAT RES",         build = CombatResPage },
+        { module = "SoulstoneReminder", title = "SOULSTONE REMINDER", build = SoulstonePage },
+        { module = "Drinking",          title = "DRINKING",           build = DrinkingPage },
         { module = "Tooltip",           title = "TOOLTIP",            build = TooltipPage },
       } },
     } },

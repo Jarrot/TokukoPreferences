@@ -94,7 +94,7 @@ Anchors the tooltip to your cursor when out of combat, snapping to the fixed anc
 ## Settings
 
 - **ElvUI:** `/ec` → **Plugins** → **TokukoPreferences**
-- **EllesmereUI:** `/tp` opens a **Tokuko Preferences** section in EllesmereUI's own options panel (via its Plugin API), with two pages: **General** (Healer Mana, Group Tools = Combat Res / Soulstone / Drinking, Tooltip) and **Chat** (Second Chat Window, Details Embed, Chat Edit Box)
+- **EllesmereUI:** `/tp` opens a **Tokuko Preferences** section in EllesmereUI's own options panel (via its Plugin API), with two pages: **General** (Healer Mana, Combat Res, Soulstone Reminder, Drinking, Tooltip) and **Chat** (Second Chat Window, Details Embed, Chat Edit Box)
 - `/tp window` — the standalone settings window (also the fallback with no UI suite)
 
 ## Installation
