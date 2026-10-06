@@ -22,8 +22,12 @@ local PAGE      = "Settings"            -- every module is a single page
 -- ===============================
 -- Each returns a DualRow slot config. Rows are paired two per line below.
 
-local function Toggle(text, tooltip, get, set)
-  return { type = "toggle", text = text, tooltip = tooltip, getValue = get, setValue = set }
+-- Long multi-line help: EUI's widget tooltip defaults to 250px centred.
+local WIDE_TIP = { justify = "LEFT", width = 340 }
+
+local function Toggle(text, tooltip, get, set, tooltipOpts)
+  return { type = "toggle", text = text, tooltip = tooltip, tooltipOpts = tooltipOpts,
+           getValue = get, setValue = set }
 end
 
 local function Slider(text, tooltip, min, max, step, get, set)
@@ -32,10 +36,12 @@ local function Slider(text, tooltip, min, max, step, get, set)
 end
 
 -- 0-1 DB value shown as a 0-100 percentage slider.
-local function PercentSlider(text, tooltip, get, set)
-  return Slider(text, tooltip, 0, 100, 5,
+local function PercentSlider(text, tooltip, get, set, disabled)
+  local s = Slider(text, tooltip, 0, 100, 5,
     function() return math.floor((get() or 0) * 100 + 0.5) end,
     function(v) set(v / 100) end)
+  s.disabled = disabled
+  return s
 end
 
 local function Dropdown(text, tooltip, values, order, get, set)
@@ -224,12 +230,19 @@ local function SoulstonePage()
 end
 
 local function EditBoxPage()
-  local db = TokukoPDB.EditBox
+  local db, EB = TokukoPDB.EditBox, TokukoP.modules.EditBox
+  local function notCover() return not db.enabled or db.mode ~= "cover" end
   return {
     { header = "CHAT EDIT BOX", rows = {
-      Toggle("Hide Data Bars Under Edit Box",
-        "While typing in chat (Enter until Esc / send), fade out any EllesmereUI data bar the edit box overlaps - like ElvUI's edit box covering its datatext panel.\n\nBars keep their own Visibility setting; it is re-applied when the edit box closes.",
-        function() return db.enabled end, function(v) TokukoP.modules.EditBox.SetEnabled(v) end),
+      Toggle("Edit Box Over Data Bars", TokukoP.EditBoxHelpText(),
+        function() return db.enabled end,
+        function(v) EB.SetEnabled(v); Refresh() end, WIDE_TIP),
+      Dropdown("Mode", nil, EB.MODE_VALUES, EB.MODE_SORTING,
+        function() return db.mode end, function(v) EB.SetMode(v); Refresh() end),
+      Color("Background Colour", "Cover mode only.", function() return db.bgColor end,
+        EB.RefreshCover, notCover),
+      PercentSlider("Background Opacity", "Cover mode only.",
+        function() return db.bgAlpha end, function(v) db.bgAlpha = v; EB.RefreshCover() end, notCover),
     } },
   }
 end
@@ -240,7 +253,8 @@ local function TooltipPage()
     { header = "COMBAT ANCHOR", rows = {
       Toggle("Cursor Anchor Out of Combat", TokukoP.TooltipHelpText(),
         function() return db.enabled end,
-        function(v) db.enabled = v; if v then TokukoP.modules.Tooltip.ApplyNow() end end),
+        function(v) db.enabled = v; if v then TokukoP.modules.Tooltip.ApplyNow() end end,
+        WIDE_TIP),
     } },
   }
 end

@@ -952,11 +952,25 @@ local function BuildFallbackWindow()
   end
 
   if active.EditBox then
+    local EB = TokukoP.modules.EditBox
     MakeDivider(c, y); y = y - 14
     MakeHeader(c, "Chat Edit Box", y); y = y - 26
-    MakeCheckbox(c, "Hide Data Bars Under Edit Box", "While typing in chat, fade out any EllesmereUI data bar the edit box overlaps (like ElvUI's edit box covering its datatext panel).",
+    MakeCheckbox(c, "Edit Box Over Data Bars", TokukoP.EditBoxHelpText(),
       function() return TokukoPDB.EditBox.enabled end,
-      function(v) TokukoP.modules.EditBox.SetEnabled(v) end, y); y = y - 28
+      function(v) EB.SetEnabled(v) end, y); y = y - 28
+    MakeDropdown(c, "Mode", nil, EB.MODE_VALUES, EB.MODE_SORTING,
+      function() return TokukoPDB.EditBox.mode end,
+      function(v) EB.SetMode(v) end, y); y = y - 44
+    MakeColorSwatch(c, "Background Colour", "Cover mode only.",
+      function() return TokukoPDB.EditBox.bgColor end,
+      function(r, g, b)
+        local col = TokukoPDB.EditBox.bgColor
+        col.r, col.g, col.b = r, g, b
+        EB.RefreshCover()
+      end, y); y = y - 28
+    MakeSlider(c, "Background Alpha", "Cover mode only.", 0, 1, 0.05,
+      function() return TokukoPDB.EditBox.bgAlpha end,
+      function(v) TokukoPDB.EditBox.bgAlpha = v; EB.RefreshCover() end, y, "%.2f"); y = y - 42
   end
 
   if active.Tooltip then
@@ -988,15 +1002,26 @@ local settingsPreviewActive = false
 -- "Anchor to Cursor" flag, so spell out which EUI settings it takes over.
 function TokukoP.TooltipHelpText()
   if TokukoP.host == TokukoP.HOST_ELLESMERE then
-    return "Tooltip follows the cursor out of combat and moves to its fixed position in combat.\n\n"
-      .. "|cffffd100Works through EllesmereUI's tooltip settings|r (Blizz UI Enhanced > Tooltips, Menus & Popups):\n"
-      .. "|cffff6060Anchor to Cursor|r - controlled by this option; changes there get overwritten at the next combat change.\n"
-      .. "|cff60ff60Cursor position / offsets|r (arrows icon) - used out of combat.\n"
-      .. "|cff60ff60Fixed position|r (drag the Tooltip box in Unlock Mode) - used in combat.\n"
-      .. "|cffff6060Reskin Tooltip|r - must be ON, otherwise this does nothing.\n"
-      .. "|cffaaaaaaShow Tooltips|r - set to Out of Combat or Never and there is no in-combat tooltip to move."
+    -- Short label + one-clause lines; shown left-justified (see tooltipOpts
+    -- in EllesmereSettings.lua). EUI's tooltip font has no bullet glyph.
+    local GOLD, GREEN, RED, GREY = "|cffffd100", "|cff60ff60", "|cffff6060", "|cff999999"
+    return "Tooltip follows the cursor out of combat\nand moves to its fixed position in combat.\n\n"
+      .. GOLD .. "Uses EllesmereUI's tooltip settings|r\n"
+      .. GREY .. "Blizz UI Enhanced > Tooltips, Menus & Popups|r\n\n"
+      .. RED .. "Anchor to Cursor|r - set by this option, don't change it there\n"
+      .. RED .. "Reskin Tooltip|r - must be ON\n"
+      .. GREEN .. "Cursor position / offsets|r - used out of combat\n"
+      .. GREEN .. "Fixed position|r (Unlock Mode) - used in combat\n"
+      .. GREY .. "Show Tooltips|r - Out of Combat / Never leaves\nnothing to move in combat"
   end
   return "Tooltip follows the cursor out of combat and moves to its fixed anchor position in combat."
+end
+
+function TokukoP.EditBoxHelpText()
+  local GOLD = "|cffffd100"
+  return "While typing in chat (Enter until Esc / send), keep the edit box on top of any data bar under it.\n\n"
+    .. GOLD .. "Cover with Background|r - gives the edit box its own background above the bars. Only covers the edit box's area.\n\n"
+    .. GOLD .. "Fade Data Bars|r - fades out every data bar the edit box overlaps, whole bar. Uses EllesmereUI internals, so an EUI update may break it."
 end
 
 function TokukoP.EnterSettingsPreview()

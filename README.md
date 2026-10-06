@@ -60,9 +60,9 @@ Whispers a chosen player when a pull countdown starts and nobody in the raid has
 ### Chat Edit Box (EllesmereUI only)
 Lets the chat edit box sit on top of a data bar, like ElvUI's edit box covering its datatext panel.
 
-- While you type, any EllesmereUI data bar the edit box overlaps fades out; it comes back when the box closes
-- Bars keep their own Visibility setting (mouseover, combat, etc.) — that's re-applied on close
-- Combat-safe (alpha only) and doesn't touch chat sending, so no taint in encounter/M+ chat lockdown
+- **Cover** (default): while you type, the edit box gets its own background (colour + opacity configurable) on a layer above the data bars
+- **Fade**: while you type, any EllesmereUI data bar the edit box overlaps fades out, and its own Visibility setting is re-applied on close. Relies on EllesmereUI internals, so an EUI update could break it
+- Doesn't touch chat sending, so no taint in encounter/M+ chat lockdown
 
 ### Tooltip
 Anchors the tooltip to your cursor when out of combat, snapping to the fixed ElvUI anchor position during combat.

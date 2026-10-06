@@ -4,6 +4,7 @@
 ## Author: Jarrot
 ## Version: @project-version@
 ## SavedVariables: TokukoPDB
+## OptionalDeps: ElvUI, EllesmereUI
 
 # Core (must load first - creates namespace)
 Core.lua

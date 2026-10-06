@@ -102,7 +102,8 @@ Falls back to `BuildFallbackWindow()` if ElvUI not loaded (opened via `/tp`).
 - Pages built with `EllesmereUI.Widgets` (only exists inside `buildPage`): `W:SectionHeader(parent, text, y)`, `W:DualRow(parent, y, leftCfg, rightCfg)` with cfg `{ type = toggle|slider|dropdown|colorpicker|input, text, tooltip, getValue, setValue, disabled, min/max/step, values/order, inputStyle/inputWidth }`. Each returns `frame, height`; buildPage returns total height.
 - `buildPage` also runs in EUI's search pre-build with a stub factory — no side effects while `EllesmereUI.IsSearchPrebuild()`.
 - Preview: entered on any of our pages; a 0.5s ticker exits it when `EllesmereUI:IsShown()` is false or `GetActiveModule()` is no longer `plugin:TokukoPreferences:*`. No hooks into EUI.
-- API guide asks plugins not to read `_`-prefixed EUI fields. Tooltip (`_applyTooltipCursorAnchor`) and EditBox (`_ModuleNS`) do — accepted risk; recheck after EUI updates.
+- API guide asks plugins not to read `_`-prefixed EUI fields or hook EUI functions. Only EditBox **fade** mode still does (opt-in). Tooltip no longer does — see TooltipModule notes in Known Decisions.
+- Long help text: pass `tooltipOpts = { justify = "LEFT", width = 340 }` on the slot — EUI's widget tooltip defaults to 250px centred. EUI's tooltip font has no bullet glyph.
 - Preview/exit iterate `activeModules`, never `modules` — a host-gated module has no db.
 
 ## ElvUI Skinning
@@ -131,6 +132,7 @@ Frame backdrop: `frame:SetTemplate("Default")`
 - `UnitPowerPercent` returns **0–1** in 12.x (not 0–100) — multiply by 100 before displaying
 - For non-player units, `UnitPowerPercent` returns a **secret value** — arithmetic blocked. `tonumber(tostring(secret))` does NOT work (tainted string blocks tonumber too). Correct workaround: `tonumber(string.format("%.4f", raw))` — `string.format` accepts secrets and produces an untainted string
 - `UNIT_DIED`'s unit arg is a **secret string** in 12.x — comparing it (`unitID ~= "pet"`) taints execution and errors. Can't `RegisterUnitEvent("UNIT_DIED", ...)` either. So don't identify the dead unit: on `UNIT_DIED` just re-check your own state (PetReminder re-runs `RefreshDisplay`, which plays the pet-lost sound on a `petWasPresent → not HasPet()` transition). Note `UNIT_PET`/`PLAYER_SPECIALIZATION_CHANGED` unit args are `"player"` and NOT secret, so those comparisons are fine.
+- Tooltip under EllesmereUI only writes EUI's account-wide `EllesmereUIDB.tooltipAnchorCursor` (EUI's hooks re-read it per tooltip; fixed anchor positions itself). EUI only INSTALLS its cursor hook at its PLAYER_LOGIN if the flag is on then, so `TooltipModule` pre-seeds it to true at our `ADDON_LOADED` (`## OptionalDeps: ElvUI, EllesmereUI` guarantees EUI's SavedVariables are loaded first). Requires EUI's Reskin Tooltip ON.
 - PetReminder is gated `HOSTS = { elvui, none }` — off under EllesmereUI, whose AuraBuffReminders "Missing Pet" (click-to-summon) covers it
 
 ## SoulstoneReminder Notes
@@ -143,10 +145,10 @@ Frame backdrop: `frame:SetTemplate("Default")`
 
 ## EditBoxModule Notes (EllesmereUI)
 
-- Never `HookScript` a chat edit box: it taints the chat-type attribute and sends get silently swallowed in encounter/M+/PvP chat lockdown (documented in EllesmereUIChat). Use `EventRegistry` callbacks `ChatFrame.OnEditBoxFocusGained/FocusLost` (+ `OnEditBoxHide` as a fallback) — they run through `securecallfunction`. Key on focus, not Show/Hide: with `chatStyle` "im" the box stays shown while inactive; only "classic" hides it. ElvUI's equivalent is a backdropped edit box `SetAllPoints(LeftChatDataPanel)` covering the datatext, which EUI's backdrop-less box can't do. Filter to ChatFrame1-10 boxes (temp whisper windows carry secret BN tell targets).
-- EUI data bars are `EllesmereUIDataBarsBar<id>`; ids from `EllesmereUI._ModuleNS.EllesmereUIDataBars.BarsInOrder()`. Hide via **SetAlpha only** — bars with secure blocks (micromenu, hearth) are implicitly protected, Show/Hide in combat is blocked. EUI's own visibility engine is alpha-only for the same reason.
-- Restore by calling the DataBars `ns.UpdateAllBarVisibility()` (respects the bar's own mouseover/combat rules); post-hook the same function to re-fade while still typing.
-- Known gap: a **mouseover**-visibility bar fades back in if hovered while typing (EUI's mouseover poll calls a local we can't reach). Bar content stays clickable while faded; if clicks land on the bar instead of the edit box, set the bar's Strata lower in EUI.
+- Two modes (`TokukoPDB.EditBox.mode`):
+  - **cover** (default, ElvUI's approach): on focus, the edit box gets our own opaque `BACKGROUND -8` texture and `SetFrameStrata("DIALOG")`; both undone on focus lost. Touches only Blizzard's edit box + our texture — **no EUI code**. Only covers the edit box's own rect. Default colour = EllesmereUIChat's panel default (0.03, 0.045, 0.05) at alpha 1.
+  - **fade**: fades every `EllesmereUIDataBarsBar<id>` overlapping the box (ids via `EllesmereUI._ModuleNS.EllesmereUIDataBars.BarsInOrder()`), SetAlpha only (bars with secure blocks are protected; Show/Hide in combat is blocked). Restores via DataBars `ns.UpdateAllBarVisibility()` and post-hooks it to re-fade while typing — hook installed lazily, only once fade is used. **Uses EUI internals** — EUI's plugin guide asks addons not to; opt-in, may break on EUI updates. Gaps: mouseover bars reappear on hover; faded bar still clickable.
+- Never `HookScript` a chat edit box: it taints the chat-type attribute and sends get silently swallowed in encounter/M+/PvP chat lockdown (documented in EllesmereUIChat). Use `EventRegistry` callbacks `ChatFrame.OnEditBoxFocusGained/FocusLost` (+ `OnEditBoxHide` as a fallback) — they run through `securecallfunction`. Key on focus, not Show/Hide: with `chatStyle` "im" the box stays shown while inactive. Filter to ChatFrame1-10 boxes (temp whisper windows carry secret BN tell targets).
 
 ## Git Branches
 

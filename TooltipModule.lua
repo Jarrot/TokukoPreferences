@@ -31,26 +31,39 @@ local function ApplyElvUIAnchor(cursor)
   E.db.tooltip.cursorAnchor = cursor
 end
 
+-- Only EUI's own "Anchor to Cursor" setting is touched -- no `_` internals
+-- (EUI's plugin guide asks addons not to use them). This works because:
+--   * EUI's GameTooltip_SetDefaultAnchor hook re-reads tooltipAnchorCursor
+--     for every tooltip, so flipping the flag switches behaviour on the next
+--     tooltip; its fixed-anchor hook steps in whenever the flag is off and
+--     positions itself per tooltip.
+--   * The cursor hook is only INSTALLED by EUI's PLAYER_LOGIN handler when the
+--     flag is on at that moment -- see PreseedEllesmere below.
 local function ApplyEllesmereAnchor(cursor)
-  local EUI = _G.EllesmereUI
-  if not EUI or not EllesmereUIDB then return end
-
+  if not _G.EllesmereUI or not EllesmereUIDB then return end
   EllesmereUIDB.tooltipAnchorCursor = cursor
-
-  -- _applyTooltipCursorAnchor installs its GameTooltip hook on first enable
-  -- (guarded by an internal `hooked` flag, so calling it every combat
-  -- transition is safe) and hides the cursor tracking frame on disable. The
-  -- hook itself re-reads tooltipAnchorCursor per tooltip, so the flag above
-  -- is what actually switches behaviour.
-  if EUI._applyTooltipCursorAnchor then EUI._applyTooltipCursorAnchor() end
-
-  -- Mirror EllesmereUI's own options panel: re-park the fixed anchor when
-  -- leaving cursor mode so the fixed position resumes cleanly (and gets its
-  -- one-time seed if this profile has never had one).
-  if not cursor and EUI._applyTooltipFixedAnchor then
-    EUI._applyTooltipFixedAnchor()
-  end
 end
+
+-- Runs at our ADDON_LOADED, i.e. before PLAYER_LOGIN (## OptionalDeps makes
+-- EllesmereUI load, SavedVariables included, before us). Turning the flag on
+-- here means EUI's own login handler installs its cursor hook; our
+-- Initialize then sets the real value for the current combat state. Covers a
+-- /reload in combat, which would otherwise have saved the flag off and left
+-- the hook uninstalled for the session.
+local function PreseedEllesmere()
+  if _G.ElvUI or not _G.EllesmereUI or not EllesmereUIDB then return end
+  local saved = TokukoPDB and TokukoPDB.Tooltip
+  if saved and saved.enabled == false then return end
+  EllesmereUIDB.tooltipAnchorCursor = true
+end
+
+local loader = CreateFrame("Frame")
+loader:RegisterEvent("ADDON_LOADED")
+loader:SetScript("OnEvent", function(self, _, name)
+  if name ~= ADDON_NAME then return end
+  self:UnregisterEvent("ADDON_LOADED")
+  PreseedEllesmere()
+end)
 
 -- cursor = true  -> tooltip follows the mouse (out of combat)
 -- cursor = false -> tooltip returns to its fixed anchor (in combat)

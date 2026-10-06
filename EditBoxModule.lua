@@ -1,9 +1,17 @@
 -- EditBoxModule.lua
--- EllesmereUI only: while a chat edit box is active (Enter pressed, until
--- Esc / send), fade out any EllesmereUI data bar it overlaps, so the edit box
--- can sit on top of a data bar. ElvUI gets the same look by giving its edit
--- box a solid backdrop SetAllPoints'd over LeftChatDataPanel; EllesmereUI's
--- edit box has no backdrop, so the bar has to go instead.
+-- EllesmereUI only: lets the chat edit box sit on top of a data bar while you
+-- type (Enter pressed, until Esc / send), like ElvUI's edit box covering its
+-- datatext panel. Two modes:
+--
+--   "cover" (default) -- ElvUI's approach: while active, the edit box gets an
+--     opaque background of our own and is raised to DIALOG strata, so it
+--     draws over the bar. Touches only Blizzard's edit box and our own
+--     texture; nothing of EllesmereUI's. Covers only the edit box's rect.
+--   "fade" -- fades out every EllesmereUI data bar the edit box overlaps.
+--     Hides the whole bar even if it is bigger than the box, but has to reach
+--     EUI internals (_ModuleNS, a post-hook on the DataBars visibility pass),
+--     which EUI's plugin guide asks addons not to do -- may break on an EUI
+--     update.
 --
 -- Keyed on edit box FOCUS, not Show/Hide: with chatStyle "classic" (default)
 -- the box is hidden whenever inactive, but with "im" it stays shown at half
@@ -25,26 +33,37 @@ EditBoxModule.HOSTS = { ellesmere = true }
 local DATABARS_ADDON = "EllesmereUIDataBars"
 local BAR_FRAME_PREFIX = "EllesmereUIDataBarsBar"  -- .. bar id (EllesmereUIDataBars.lua)
 
+-- Above every normal bar strata choice (EUI's Bar Strata goes higher, but a
+-- data bar up there is unusual).
+local COVER_STRATA = "DIALOG"
+
+EditBoxModule.MODE_VALUES  = { cover = "Cover with Background", fade = "Fade Data Bars" }
+EditBoxModule.MODE_SORTING = { "cover", "fade" }
+
 local DEFAULTS = {
   enabled = true,
+  mode    = "cover",
+  -- EllesmereUIChat's default panel colour, made opaque so the bar does not
+  -- show through.
+  bgColor = { r = 0.03, g = 0.045, b = 0.05 },
+  bgAlpha = 1,
 }
 
 -- ===============================
 -- State
 -- ===============================
 
-local db      = nil
-local hidden  = {}     -- bar frame -> true while we hold it at alpha 0
-local typing  = false  -- a permanent chat edit box is shown
-local hooked  = false
+local db        = nil
+local hidden    = {}     -- fade: bar frame -> true while we hold it at alpha 0
+local covered   = {}     -- cover: edit box -> its original strata
+local covers    = {}     -- cover: edit box -> our background texture
+local typing    = false  -- a permanent chat edit box is active
+local hooked    = false
+local fadeHooked = false
 
 -- ===============================
 -- Helpers
 -- ===============================
-
-local function DataBarsNS()
-  return EllesmereUI and EllesmereUI._ModuleNS and EllesmereUI._ModuleNS[DATABARS_ADDON]
-end
 
 -- Same filter EllesmereUIChat applies (PermanentEditBox): only ChatFrame1-10.
 -- Temp whisper windows (11+) carry secret BN tell targets; leave them alone.
@@ -63,6 +82,52 @@ local function AnyPermanentEditBoxActive(except)
     if eb and eb ~= except and eb:IsShown() and eb:HasFocus() then return true end
   end
   return false
+end
+
+-- ===============================
+-- Cover mode
+-- ===============================
+
+local function ApplyCoverColor(tex)
+  local c = db.bgColor
+  tex:SetColorTexture(c.r, c.g, c.b, db.bgAlpha)
+end
+
+local function CoverOn(eb)
+  local tex = covers[eb]
+  if not tex then
+    -- Lowest sublayer so the edit box's own text and header draw on top.
+    tex = eb:CreateTexture(nil, "BACKGROUND", nil, -8)
+    tex:SetAllPoints(eb)
+    covers[eb] = tex
+  end
+  ApplyCoverColor(tex)
+  tex:Show()
+  if not covered[eb] then
+    covered[eb] = eb:GetFrameStrata()
+    eb:SetFrameStrata(COVER_STRATA)
+  end
+end
+
+local function CoverOff(eb)
+  if covers[eb] then covers[eb]:Hide() end
+  if covered[eb] then
+    eb:SetFrameStrata(covered[eb])
+    covered[eb] = nil
+  end
+end
+
+local function CoverOffAll()
+  for eb in pairs(covered) do CoverOff(eb) end
+  for _, tex in pairs(covers) do tex:Hide() end
+end
+
+-- ===============================
+-- Fade mode (EUI internals)
+-- ===============================
+
+local function DataBarsNS()
+  return EllesmereUI and EllesmereUI._ModuleNS and EllesmereUI._ModuleNS[DATABARS_ADDON]
 end
 
 -- Screen-space rect (frames can sit under different effective scales).
@@ -92,11 +157,31 @@ local function ForEachBarFrame(fn)
   end
 end
 
+-- EllesmereUI re-runs its visibility pass on combat, group and mount changes,
+-- which would fade the bar back in mid-sentence. Re-assert after it.
+local function AfterVisibilityPass()
+  if not typing then return end
+  for f in pairs(hidden) do f:SetAlpha(0) end
+end
+
+-- Only installed once fade mode is actually used, so cover-mode users never
+-- hook anything of EUI's. ns.UpdateAllBarVisibility is called through the
+-- table (OnVisEvent), so a post-hook on the field catches every pass.
+local function EnsureFadeHook()
+  if fadeHooked then return end
+  local ns = DataBarsNS()
+  if ns and ns.UpdateAllBarVisibility then
+    hooksecurefunc(ns, "UpdateAllBarVisibility", AfterVisibilityPass)
+    fadeHooked = true
+  end
+end
+
 -- Alpha only. EllesmereUI's own visibility engine is alpha-only for the same
 -- reason: a bar hosting a secure block (micromenu, hearth) is implicitly
 -- protected, so Show/Hide on it in combat is ADDON_ACTION_BLOCKED. SetAlpha
 -- is combat-legal.
-local function HideOverlapping(eb)
+local function FadeOverlapping(eb)
+  EnsureFadeHook()
   ForEachBarFrame(function(f)
     if Overlaps(eb, f) then
       hidden[f] = true
@@ -107,7 +192,7 @@ end
 
 -- Hand the bars back to EllesmereUI rather than forcing alpha 1, so bars set
 -- to mouseover / combat-only / never still get their own state.
-local function Restore()
+local function FadeRestore()
   if not next(hidden) then return end
   wipe(hidden)
   local ns = DataBarsNS()
@@ -120,6 +205,12 @@ end
 -- Edit box callbacks
 -- ===============================
 
+local function RestoreAll()
+  typing = false
+  CoverOffAll()
+  FadeRestore()
+end
+
 -- EventRegistry, NOT HookScript on the edit box: EllesmereUIChat documents
 -- that hooking edit box scripts taints the chat-type attribute, and inside a
 -- chat lockdown (encounter, M+, PvP) the tainted send is silently swallowed.
@@ -128,21 +219,19 @@ end
 local function OnEditBoxActive(_, eb)
   if not (db and db.enabled) or not IsPermanentEditBox(eb) then return end
   typing = true
-  HideOverlapping(eb)
+  if db.mode == "fade" then
+    FadeOverlapping(eb)
+  else
+    CoverOn(eb)
+  end
 end
 
 local function OnEditBoxInactive(_, eb)
   if not IsPermanentEditBox(eb) then return end
+  CoverOff(eb)
   if AnyPermanentEditBoxActive(eb) then return end
   typing = false
-  Restore()
-end
-
--- EllesmereUI re-runs its visibility pass on combat, group and mount changes,
--- which would fade the bar back in mid-sentence. Re-assert after it.
-local function AfterVisibilityPass()
-  if not typing then return end
-  for f in pairs(hidden) do f:SetAlpha(0) end
+  FadeRestore()
 end
 
 local function InstallHooks()
@@ -154,13 +243,6 @@ local function InstallHooks()
   -- Belt-and-braces: a box hidden without a focus-lost (UI hidden, frame
   -- closed) must still give the bar back.
   EventRegistry:RegisterCallback("ChatFrame.OnEditBoxHide", OnEditBoxInactive, "TokukoP_EditBoxHide")
-
-  -- ns.UpdateAllBarVisibility is called through the table (OnVisEvent), so a
-  -- post-hook on the table field catches every pass.
-  local ns = DataBarsNS()
-  if ns and ns.UpdateAllBarVisibility then
-    hooksecurefunc(ns, "UpdateAllBarVisibility", AfterVisibilityPass)
-  end
 end
 
 -- ===============================
@@ -170,10 +252,19 @@ end
 -- Settings toggle: turning off while typing gives the bar back immediately.
 function EditBoxModule.SetEnabled(v)
   db.enabled = v
-  if not v then
-    typing = false
-    Restore()
-  end
+  if not v then RestoreAll() end
+end
+
+-- Switching mode mid-typing: undo the old mode; the new one applies on the
+-- next Enter.
+function EditBoxModule.SetMode(v)
+  db.mode = v
+  RestoreAll()
+end
+
+-- Colour / opacity change: repaint any visible cover.
+function EditBoxModule.RefreshCover()
+  for _, tex in pairs(covers) do ApplyCoverColor(tex) end
 end
 
 -- ===============================
