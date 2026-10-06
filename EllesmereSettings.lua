@@ -341,15 +341,15 @@ end
 -- `key` is the plugin module key -- keep it stable, EUI remembers the last
 -- page per key.
 local ROWS = {
-  { key = "HealerMana", title = "Healer Mana",
-    description = "Movable list of group healers sorted by mana, lowest first.",
-    pages = { { name = "Settings", module = "HealerMana", build = HealerManaPage } } },
-  { key = "CombatRes", title = "Combat Res",
-    description = "Battle-res charges and Shaman Reincarnation cooldown.",
-    pages = { { name = "Settings", module = "CombatRes", build = CombatResPage } } },
-  { key = "SoulstoneReminder", title = "Soulstone Reminder",
-    description = "Whisper a player on pull countdown when nobody has a Soulstone.",
-    pages = { { name = "Settings", module = "SoulstoneReminder", build = SoulstonePage } } },
+  { key = "General", title = "General",
+    description = "Healer mana, battle res, Soulstone reminder, drinking announcements and tooltip anchoring.",
+    pages = {
+      { name = "Healer Mana", module = "HealerMana",        build = HealerManaPage },
+      { name = "Combat Res",  module = "CombatRes",         build = CombatResPage },
+      { name = "Soulstone",   module = "SoulstoneReminder", build = SoulstonePage },
+      { name = "Drinking",    module = "Drinking",          build = DrinkingPage },
+      { name = "Tooltip",     module = "Tooltip",           build = TooltipPage },
+    } },
   { key = "Chat", title = "Chat",
     description = "Second chat window, Details embed and the chat edit box.",
     pages = {
@@ -357,12 +357,6 @@ local ROWS = {
       { name = "Details",       module = "Embed",      build = EmbedPage },
       { name = "Edit Box",      module = "EditBox",    build = EditBoxPage },
     } },
-  { key = "Drinking", title = "Drinking",
-    description = "Group chat announcements when you eat or drink.",
-    pages = { { name = "Settings", module = "Drinking", build = DrinkingPage } } },
-  { key = "Tooltip", title = "Tooltip",
-    description = "Tooltip on the cursor out of combat, fixed position in combat.",
-    pages = { { name = "Settings", module = "Tooltip", build = TooltipPage } } },
 }
 
 -- ===============================
