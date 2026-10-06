@@ -1086,6 +1086,7 @@ function TokukoP.ChatWindowHelpText()
     .. "1. Right-click the General tab > New Window, name it (e.g. Details)\n"
     .. "2. Drag its tab off the chat to undock it\n"
     .. "3. Right-click its tab > Settings, untick all messages and channels\n\n"
+    .. "Also movable and resizable in EllesmereUI's Unlock Mode as |cffffd100Second Chat|r (Chat group).\n\n"
     .. "Status: " .. statusText
 end
 

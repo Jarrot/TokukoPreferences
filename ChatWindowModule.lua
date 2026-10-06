@@ -112,6 +112,103 @@ function ChatWindowModule.Apply()
 end
 
 -- ===============================
+-- EllesmereUI Unlock Mode
+-- ===============================
+-- EUI_UnlockMode.lua: "Elements from any addon register via
+-- EllesmereUI:RegisterUnlockElements()". The mover places the frame with ONE
+-- anchor point on every drag tick / nudge, which would drop our second corner
+-- and fall back to the frame's explicit size -- so onLiveMove re-pins both
+-- corners from that single point (EllesmereUIChat's KeepMainChatSizeCorner
+-- does the same for ChatFrame1). Resizes come through setWidth/setHeight,
+-- which only update the DB and re-anchor: still never SetSize.
+
+local UNLOCK_KEY = "TokukoP_ChatWindow"
+
+-- Re-pin TOPLEFT + BOTTOMRIGHT from whatever single point the mover set.
+local function RepinFromSinglePoint()
+  local cf = ChatWindowModule.FindWindow()
+  if not cf or cf == ChatFrame1 or cf.isDocked or InCombatLockdown() then return end
+  if cf:GetNumPoints() ~= 1 then return end
+  local point, rel, relPoint, px, py = cf:GetPoint(1)
+  if rel ~= UIParent or type(px) ~= "number" or type(py) ~= "number" then return end
+  local issecret = issecretvalue
+  if issecret and (issecret(px) or issecret(py)) then return end
+  relPoint = relPoint or point
+  local w, h = math.max(MIN_W, db.width), math.max(MIN_H, db.height)
+  -- Offset from the given point to the frame's TOPLEFT corner.
+  local dx = point:find("LEFT") and 0 or point:find("RIGHT") and -w or -w / 2
+  local dy = point:find("TOP") and 0 or point:find("BOTTOM") and h or h / 2
+  local left, top = px + dx, py + dy
+  ClearPoints(cf)
+  SetPoint(cf, "TOPLEFT", UIParent, relPoint, left, top)
+  SetPoint(cf, "BOTTOMRIGHT", UIParent, relPoint, left + w, top - h)
+end
+
+-- Unlock Mode stores positions as CENTER/CENTER offsets from UIParent's
+-- centre; ours are offsets from the bottom-right corner.
+local function CenterFromDB()
+  local W, H = UIParent:GetWidth(), UIParent:GetHeight()
+  local cx = (W - db.x - db.width / 2) - W / 2
+  local cy = (db.y + db.height / 2) - H / 2
+  return cx, cy
+end
+
+local function DBFromCenter(cx, cy)
+  local W, H = UIParent:GetWidth(), UIParent:GetHeight()
+  db.x = math.floor(W - (W / 2 + cx + db.width / 2) + 0.5)
+  db.y = math.floor((H / 2 + cy - db.height / 2) + 0.5)
+end
+
+function ChatWindowModule.RegisterUnlock()
+  if not (EllesmereUI and EllesmereUI.RegisterUnlockElements and EllesmereUI.MakeUnlockElement) then
+    return
+  end
+  EllesmereUI:RegisterUnlockElements({
+    EllesmereUI.MakeUnlockElement({
+      key      = UNLOCK_KEY,
+      label    = "Second Chat",
+      group    = "Chat",
+      order    = 610,  -- right after EUI's own Chat (600)
+      subtitle = "TokukoPreferences",
+      -- We place the window ourselves (login, settings); anchor links to other
+      -- elements would make EUI a second owner of a chat frame. Other
+      -- elements may still anchor TO it (e.g. a data bar under it).
+      ownsPosition = true,
+      noInitHook   = true,
+      isHidden = function()
+        return not (db and db.enabled and ChatWindowModule.Status() == "ok")
+      end,
+      getFrame = function() return ChatWindowModule.FindWindow() end,
+      getSize  = function() return db.width, db.height end,
+      onLiveMove = RepinFromSinglePoint,
+      savePos = function(_, point, relPoint, x, y)
+        if point == "CENTER" and (relPoint or point) == "CENTER"
+           and type(x) == "number" and type(y) == "number" then
+          DBFromCenter(x, y)
+        else
+          ChatWindowModule.UseCurrent()
+          return
+        end
+        ChatWindowModule.Apply()
+      end,
+      loadPos = function()
+        local cx, cy = CenterFromDB()
+        return { point = "CENTER", relPoint = "CENTER", x = cx, y = cy }
+      end,
+      applyPos = function() ChatWindowModule.Apply() end,
+      setWidth = function(_, w)
+        db.width = math.max(MIN_W, math.floor(w + 0.5))
+        ApplyNow()
+      end,
+      setHeight = function(_, h)
+        db.height = math.max(MIN_H, math.floor(h + 0.5))
+        ApplyNow()
+      end,
+    }),
+  }, ADDON_NAME)
+end
+
+-- ===============================
 -- Settings helpers (buttons)
 -- ===============================
 
@@ -155,6 +252,9 @@ function ChatWindowModule.Initialize()
   TokukoPDB.ChatWindow = TokukoPDB.ChatWindow or {}
   TokukoP.MergeDefaults(TokukoPDB.ChatWindow, DEFAULTS)
   db = TokukoPDB.ChatWindow
+  -- Registered once; isHidden() keeps the mover away until the window is
+  -- enabled and found, and is re-read whenever Unlock Mode opens.
+  ChatWindowModule.RegisterUnlock()
 end
 
 function ChatWindowModule.RegisterEvents(frame)
