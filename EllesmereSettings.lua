@@ -15,7 +15,6 @@ local ADDON_NAME = ...
 local TokukoP = TokukoP
 
 local PLUGIN_ID = "TokukoPreferences"   -- API: use the addon folder name
-local PAGE      = "Settings"            -- every module is a single page
 
 -- ===============================
 -- Row helpers
@@ -299,23 +298,33 @@ local function TooltipPage()
   }
 end
 
--- Sidebar order. `module` = key in TokukoP.activeModules; inactive ones are
--- skipped (their TokukoPDB sub-table does not exist).
-local PAGES = {
-  { module = "HealerMana",        title = "Healer Mana",        build = HealerManaPage,
-    description = "Movable list of group healers sorted by mana, lowest first." },
-  { module = "CombatRes",         title = "Combat Res",         build = CombatResPage,
-    description = "Battle-res charges and Shaman Reincarnation cooldown." },
-  { module = "SoulstoneReminder", title = "Soulstone Reminder", build = SoulstonePage,
-    description = "Whisper a player on pull countdown when nobody has a Soulstone." },
-  { module = "Drinking",          title = "Drinking",           build = DrinkingPage,
-    description = "Group chat announcements when you eat or drink." },
-  { module = "ChatWindow",        title = "Second Chat Window", build = ChatWindowPage,
-    description = "Exact size and position for a free-floating chat window (Details host)." },
-  { module = "EditBox",           title = "Chat Edit Box",      build = EditBoxPage,
-    description = "Let the chat edit box sit on top of a data bar." },
-  { module = "Tooltip",           title = "Tooltip",            build = TooltipPage,
-    description = "Tooltip on the cursor out of combat, fixed position in combat." },
+-- Sidebar rows. Each row is one EUI "module" with one or more page tabs;
+-- a tab whose `module` is not in TokukoP.activeModules is left out (its
+-- TokukoPDB sub-table does not exist), and a row with no tabs left is dropped.
+-- `key` is the plugin module key -- keep it stable, EUI remembers the last
+-- page per key.
+local ROWS = {
+  { key = "HealerMana", title = "Healer Mana",
+    description = "Movable list of group healers sorted by mana, lowest first.",
+    pages = { { name = "Settings", module = "HealerMana", build = HealerManaPage } } },
+  { key = "CombatRes", title = "Combat Res",
+    description = "Battle-res charges and Shaman Reincarnation cooldown.",
+    pages = { { name = "Settings", module = "CombatRes", build = CombatResPage } } },
+  { key = "SoulstoneReminder", title = "Soulstone Reminder",
+    description = "Whisper a player on pull countdown when nobody has a Soulstone.",
+    pages = { { name = "Settings", module = "SoulstoneReminder", build = SoulstonePage } } },
+  { key = "Chat", title = "Chat",
+    description = "Second chat window (Details host) and the chat edit box.",
+    pages = {
+      { name = "Second Window", module = "ChatWindow", build = ChatWindowPage },
+      { name = "Edit Box",      module = "EditBox",    build = EditBoxPage },
+    } },
+  { key = "Drinking", title = "Drinking",
+    description = "Group chat announcements when you eat or drink.",
+    pages = { { name = "Settings", module = "Drinking", build = DrinkingPage } } },
+  { key = "Tooltip", title = "Tooltip",
+    description = "Tooltip on the cursor out of combat, fixed position in combat.",
+    pages = { { name = "Settings", module = "Tooltip", build = TooltipPage } } },
 }
 
 -- ===============================
@@ -328,16 +337,25 @@ function TokukoP.RegisterEllesmerePlugin()
 
   local active = TokukoP.activeModules or {}
   local modules = {}
-  for _, p in ipairs(PAGES) do
-    if active[p.module] then
+  for _, row in ipairs(ROWS) do
+    local names, builders = {}, {}
+    for _, pg in ipairs(row.pages) do
+      if active[pg.module] then
+        names[#names + 1] = pg.name
+        builders[pg.name] = pg.build
+      end
+    end
+    if #names > 0 then
       modules[#modules + 1] = {
-        key         = p.module,
-        title       = p.title,
-        description = p.description,
-        pages       = { PAGE },
-        buildPage   = function(_, parent, yOffset)
+        key         = row.key,
+        title       = row.title,
+        description = row.description,
+        pages       = names,
+        buildPage   = function(pageName, parent, yOffset)
           StartPreview()
-          return BuildSections(parent, yOffset, p.build())
+          local build = builders[pageName]
+          if not build then return 0 end
+          return BuildSections(parent, yOffset, build())
         end,
         onPageCacheRestore = StartPreview,
       }

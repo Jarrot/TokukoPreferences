@@ -87,6 +87,32 @@ function ChatWindowModule.Status()
 end
 
 -- ===============================
+-- EllesmereUIChat refresh
+-- ===============================
+-- EUI places its chat panel and the undocked window's tab ghost NUMERICALLY
+-- from the chat frame's rect, re-read only while chat is interacted with
+-- (hovering a tab / resize grip, Edit or Unlock Mode) -- "NO recurring work at
+-- idle". Moving the window from code is invisible to it, so the panel and tab
+-- lag until the next hover. There is no public API for this; the one call
+-- below reaches EllesmereUIChat's internal namespace (EUI's plugin guide asks
+-- addons not to). QueueTabPass is EUI's own deferred, coalesced pass (tab
+-- layout + SyncChatFrameState + PositionChatPanelsNow). Guarded: if an EUI
+-- update renames it, this silently does nothing and the old lag is back.
+local function NudgeEUIChat()
+  local ns = EllesmereUI and EllesmereUI._ModuleNS and EllesmereUI._ModuleNS.EllesmereUIChat
+  local ECHAT = ns and ns.ECHAT
+  if not ECHAT then return end
+  -- Let the engine resolve the new anchors first.
+  C_Timer.After(0.05, function()
+    if ECHAT.QueueTabPass then
+      pcall(ECHAT.QueueTabPass)
+    elseif ECHAT.PositionChatPanelsNow then
+      pcall(ECHAT.PositionChatPanelsNow)
+    end
+  end)
+end
+
+-- ===============================
 -- Apply
 -- ===============================
 
@@ -104,6 +130,7 @@ local function ApplyNow()
   ClearPoints(cf)
   SetPoint(cf, "BOTTOMRIGHT", UIParent, "BOTTOMRIGHT", -x, y)
   SetPoint(cf, "TOPLEFT", UIParent, "BOTTOMRIGHT", -x - w, y + h)
+  NudgeEUIChat()
 end
 
 -- Deferred one frame: never run inside a Blizzard chat/dock pass.
@@ -142,6 +169,7 @@ local function RepinFromSinglePoint()
   ClearPoints(cf)
   SetPoint(cf, "TOPLEFT", UIParent, relPoint, left, top)
   SetPoint(cf, "BOTTOMRIGHT", UIParent, relPoint, left + w, top - h)
+  NudgeEUIChat()
 end
 
 -- Unlock Mode stores positions as CENTER/CENTER offsets from UIParent's
