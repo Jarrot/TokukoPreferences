@@ -1,6 +1,13 @@
 # TokukoPreferences
 
-A modular WoW addon for **Midnight 12.x** built around ElvUI. Written in Lua.
+A modular WoW addon for **Midnight 12.x** for **ElvUI or EllesmereUI** (Jarrot switched to EllesmereUI in 2026-10). Written in Lua.
+
+## Host detection
+
+- `TokukoP.DetectHost()` at PLAYER_LOGIN → `TokukoP.host` = `elvui` | `ellesmere` | `none` (ElvUI wins if both). Globals aren't reliable at file load.
+- Modules declare `Module.HOSTS = { elvui = true, ... }`; no table = runs everywhere. Core builds `TokukoP.activeModules` and only those get Initialize / RegisterEvents / OnEvent. **Always iterate `activeModules`** (preview etc.) — a gated module never initialized and has no db.
+- Current gates: Embed {elvui, ellesmere}, Tooltip {elvui, ellesmere}, PetReminder {elvui, none}, EditBox {ellesmere}, ChatWindow {ellesmere}; the rest run everywhere.
+- EllesmereUI's source (21 addons) is on disk under the WoW AddOns dir — read it before guessing. Its plugin rules: `EllesmereUI/PLUGINS_API.md`.
 
 ## Project Structure
 
@@ -35,8 +42,8 @@ DebugModule.lua       — optional debug commands, commented out in TOC by defau
 ```
 Interface: 120000, 120001, 120005
 SavedVariables: TokukoPDB
-Load order: Core → DrinkingModule → TooltipModule → EmbedModule → Settings
-# DebugModule.lua  ← uncomment to enable debug commands
+OptionalDeps: ElvUI, EllesmereUI   (their SavedVariables load before ours — TooltipModule relies on it)
+Load order: Libs (LibStub, CallbackHandler, LDB) → Core → modules → Settings → EllesmereSettings → DebugModule
 ```
 
 ## EmbedModule Architecture
