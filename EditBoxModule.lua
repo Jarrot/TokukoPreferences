@@ -1,7 +1,13 @@
 -- EditBoxModule.lua
--- EllesmereUI only: while a chat edit box is open, fade out any EllesmereUI
--- data bar it overlaps, so the edit box can sit on top of a data bar the way
--- ElvUI's chat edit box covers its datatext panel. Restored on close.
+-- EllesmereUI only: while a chat edit box is active (Enter pressed, until
+-- Esc / send), fade out any EllesmereUI data bar it overlaps, so the edit box
+-- can sit on top of a data bar. ElvUI gets the same look by giving its edit
+-- box a solid backdrop SetAllPoints'd over LeftChatDataPanel; EllesmereUI's
+-- edit box has no backdrop, so the bar has to go instead.
+--
+-- Keyed on edit box FOCUS, not Show/Hide: with chatStyle "classic" (default)
+-- the box is hidden whenever inactive, but with "im" it stays shown at half
+-- alpha, so Show/Hide would never give the bar back.
 
 local ADDON_NAME = ...
 local TokukoP = TokukoP
@@ -49,10 +55,12 @@ local function IsPermanentEditBox(eb)
   return i ~= nil and i <= 10
 end
 
-local function AnyPermanentEditBoxShown()
+-- `except`: the box whose focus-lost callback is running, in case HasFocus
+-- still reports true from inside its own OnEditFocusLost.
+local function AnyPermanentEditBoxActive(except)
   for i = 1, 10 do
     local eb = _G["ChatFrame" .. i .. "EditBox"]
-    if eb and eb:IsShown() then return true end
+    if eb and eb ~= except and eb:IsShown() and eb:HasFocus() then return true end
   end
   return false
 end
@@ -117,15 +125,15 @@ end
 -- chat lockdown (encounter, M+, PvP) the tainted send is silently swallowed.
 -- TriggerEvent runs registrants through securecallfunction, so our taint
 -- stops at our own closure.
-local function OnEditBoxShow(_, eb)
+local function OnEditBoxActive(_, eb)
   if not (db and db.enabled) or not IsPermanentEditBox(eb) then return end
   typing = true
   HideOverlapping(eb)
 end
 
-local function OnEditBoxHide(_, eb)
+local function OnEditBoxInactive(_, eb)
   if not IsPermanentEditBox(eb) then return end
-  if AnyPermanentEditBoxShown() then return end
+  if AnyPermanentEditBoxActive(eb) then return end
   typing = false
   Restore()
 end
@@ -141,8 +149,11 @@ local function InstallHooks()
   if hooked or not (EventRegistry and EventRegistry.RegisterCallback) then return end
   hooked = true
   -- Constant owner strings: re-registration replaces rather than stacks.
-  EventRegistry:RegisterCallback("ChatFrame.OnEditBoxShow", OnEditBoxShow, "TokukoP_EditBoxShow")
-  EventRegistry:RegisterCallback("ChatFrame.OnEditBoxHide", OnEditBoxHide, "TokukoP_EditBoxHide")
+  EventRegistry:RegisterCallback("ChatFrame.OnEditBoxFocusGained", OnEditBoxActive, "TokukoP_EditBoxFocus")
+  EventRegistry:RegisterCallback("ChatFrame.OnEditBoxFocusLost", OnEditBoxInactive, "TokukoP_EditBoxBlur")
+  -- Belt-and-braces: a box hidden without a focus-lost (UI hidden, frame
+  -- closed) must still give the bar back.
+  EventRegistry:RegisterCallback("ChatFrame.OnEditBoxHide", OnEditBoxInactive, "TokukoP_EditBoxHide")
 
   -- ns.UpdateAllBarVisibility is called through the table (OnVisEvent), so a
   -- post-hook on the table field catches every pass.
