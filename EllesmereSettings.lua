@@ -82,7 +82,9 @@ local function BuildSections(parent, yOffset, sections)
       end
     end
     for _, slot in ipairs(sec.rows) do
-      if slot.type == "input" then
+      if slot.type == "break" then
+        flush()
+      elseif slot.type == "input" then
         flush()
         _, h = W:DualRow(parent, y, slot, nil); y = y - h
       elseif pending then
@@ -347,9 +349,13 @@ local ROWS = {
     pages = {
       { name = "Settings", modules = {
         { module = "HealerMana",        title = "HEALER MANA",        build = HealerManaPage },
-        { module = "CombatRes",         title = "COMBAT RES",         build = CombatResPage },
-        { module = "SoulstoneReminder", title = "SOULSTONE REMINDER", build = SoulstonePage },
-        { module = "Drinking",          title = "DRINKING",           build = DrinkingPage },
+        -- Three small modules under one header; their "Enable" rows are
+        -- renamed so it stays clear which toggle is which.
+        { title = "GROUP TOOLS", parts = {
+          { module = "CombatRes",         build = CombatResPage, enable = "Combat Res" },
+          { module = "SoulstoneReminder", build = SoulstonePage, enable = "Soulstone Reminder" },
+          { module = "Drinking",          build = DrinkingPage,  enable = "Drinking Announcements" },
+        } },
         { module = "Tooltip",           title = "TOOLTIP",            build = TooltipPage },
       } },
     } },
@@ -379,14 +385,27 @@ function TokukoP.RegisterEllesmerePlugin()
     for _, pg in ipairs(row.pages) do
       -- Each module on the page = ONE header with all its settings under it
       -- (its own sub-sections merged; EUI has a single header style).
+      -- An entry is one module, or several (`parts`) merged under one header.
       local parts = {}
       for _, m in ipairs(pg.modules) do
-        if active[m.module] then
-          local build, title = m.build, m.title
+        local members = m.parts or { m }
+        local live = {}
+        for _, p in ipairs(members) do
+          if active[p.module] then live[#live + 1] = p end
+        end
+        if #live > 0 then
+          local title = m.title
           parts[#parts + 1] = function()
             local rows = {}
-            for _, sec in ipairs(build()) do
-              for _, slot in ipairs(sec.rows) do rows[#rows + 1] = slot end
+            for n, p in ipairs(live) do
+              -- New module, new line: never pair two modules' rows together.
+              if n > 1 then rows[#rows + 1] = { type = "break" } end
+              for _, sec in ipairs(p.build()) do
+                for _, slot in ipairs(sec.rows) do
+                  if p.enable and slot.text == "Enable" then slot.text = p.enable end
+                  rows[#rows + 1] = slot
+                end
+              end
             end
             return { header = title, rows = rows }
           end
