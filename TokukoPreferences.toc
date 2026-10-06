@@ -6,6 +6,11 @@
 ## SavedVariables: TokukoPDB
 ## OptionalDeps: ElvUI, EllesmereUI
 
+# Libraries (LibStub keeps only the newest copy across addons)
+Libs\LibStub\LibStub.lua
+Libs\CallbackHandler-1.0\CallbackHandler-1.0.lua
+Libs\LibDataBroker-1.1\LibDataBroker-1.1.lua
+
 # Core (must load first - creates namespace)
 Core.lua
 
@@ -19,6 +24,7 @@ PetReminderModule.lua
 SoulstoneReminderModule.lua
 EditBoxModule.lua
 ChatWindowModule.lua
+SpeedModule.lua
 
 # Settings (must load after modules)
 Settings.lua

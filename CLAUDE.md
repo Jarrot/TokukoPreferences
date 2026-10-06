@@ -15,6 +15,8 @@ PetReminderModule.lua — flashing warning when a Hunter/Warlock/Unholy DK has n
 SoulstoneReminderModule.lua — whispers a configured player on pull countdown if nobody in the group has a Soulstone
 EditBoxModule.lua     — EllesmereUI only: keeps the active chat edit box on top of EUI data bars (cover/fade)
 ChatWindowModule.lua  — EllesmereUI only: exact size/position for an undocked chat window (Details host)
+SpeedModule.lua       — LibDataBroker source "TokukoP: Speed": current max movement speed in %, 100% = run speed
+Libs/                 — bundled LibStub, CallbackHandler-1.0, LibDataBroker-1.1 (EUI does not ship LDB)
 Settings.lua          — ElvUI AceConfig panel (/ec → Plugins → TokukoPreferences) + standalone /tp window
 EllesmereSettings.lua — EllesmereUI options-panel section via EUI's Plugin API
 DebugModule.lua       — optional debug commands, commented out in TOC by default
@@ -171,6 +173,13 @@ Frame backdrop: `frame:SetTemplate("Default")`
 - Values are the chat frame's own rect; EUI's painted panel extends ~10px each side plus the tab band.
 - After moving the window, `NudgeEUIChat()` calls EllesmereUIChat's `ECHAT.QueueTabPass` (internal, guarded): EUI re-reads chat rects only while chat is hovered / Edit / Unlock Mode, so a code-driven move left its panel + tab ghost stale until the next tab hover (Jarrot hit this 2026-10-06).
 - **EUI Unlock Mode element** `TokukoP_ChatWindow` (group "Chat", order 610) via `EllesmereUI:RegisterUnlockElements` + `EllesmereUI.MakeUnlockElement` — EUI_UnlockMode.lua's header says any addon may register (no caller check, not `_`). Movers place the frame with ONE point per drag tick → `onLiveMove` re-pins TOPLEFT+BOTTOMRIGHT from that point using the DB size (same as EllesmereUIChat's `KeepMainChatSizeCorner`). Positions arrive as CENTER/CENTER offsets → converted to our bottom-right x/y. Resize arrives via `setWidth/setHeight` → DB + re-anchor (still never SetSize). `ownsPosition` (no anchor links FROM it; others may anchor TO it), `noInitHook` (we position it ourselves). `isHidden` until enabled + window found undocked.
+
+## SpeedModule Notes
+
+- LDB data source `TokukoP: Speed` (add via an EUI data bar's LDB block, or any LDB display / ElvUI datatext). Text is just `NNN%`: the max speed for the current state — swim / skyriding forward speed / flight / run — over `BASE_MOVEMENT_SPEED` (7). Value only, no tooltip (Jarrot).
+- `GetUnitSpeed` can be **secret** in 12.x (LiteMount guards it; ElvUI's datatext uses AbbreviateNumbers instead of math). LibDataBroker's `__newindex` compares old/new with `==`, which throws on a secret — so secret readings are skipped (last value stays) and the secret check runs BEFORE any `== nil`. `GetGlidingInfo`'s isGliding is secret-checked too.
+- 0.25s ticker (swim/fly/glide transitions have no event); pushes to LDB only when the % changes.
+- No HOSTS gate, no settings.
 
 ## Git Branches
 

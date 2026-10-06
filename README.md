@@ -64,6 +64,9 @@ Lets the chat edit box sit on top of a data bar, like ElvUI's edit box covering 
 - **Fade**: while you type, any EllesmereUI data bar the edit box overlaps fades out, and its own Visibility setting is re-applied on close. Relies on EllesmereUI internals, so an EUI update could break it
 - Doesn't touch chat sending, so no taint in encounter/M+ chat lockdown
 
+### Movement Speed (data bar)
+A LibDataBroker item, **TokukoP: Speed**, showing your current max movement speed as a percentage (100% = normal run speed) — for whatever you're doing right now: running, swimming, flying or skyriding. Add it to an EllesmereUI data bar (LDB block) or any LDB display.
+
 ### Tooltip
 Anchors the tooltip to your cursor when out of combat, snapping to the fixed ElvUI anchor position during combat.
 
