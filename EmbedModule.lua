@@ -1,5 +1,6 @@
 -- EmbedModule.lua
--- Embeds Details! damage/healing meter windows into ElvUI's right chat panel.
+-- Embeds Details! damage/healing meter windows into ElvUI's right chat panel,
+-- or under EllesmereUI into the Second Chat Window (ChatWindowModule).
 -- Toggle via /tpembed or right-click the ElvUI panel toggle button (">").
 
 local ADDON_NAME = ...
@@ -8,11 +9,14 @@ local TokukoP = TokukoP
 local EmbedModule = {}
 TokukoP.modules.Embed = EmbedModule
 
--- ElvUI only: the whole module is built on ElvUI's RightChatPanel /
--- RightChatDataPanel geometry, which has no equivalent in other suites.
--- EllesmereUI gives each chat frame its own backdrop instead of a fixed
--- left/right panel pair, so this needs a rewrite rather than a port.
-EmbedModule.HOSTS = { elvui = true }
+-- ElvUI: embeds into RightChatPanel (unchanged original path).
+-- EllesmereUI: there is no right panel -- EUI paints a backdrop behind each
+-- Blizzard chat window -- so the host is an invisible frame of OURS laid
+-- numerically over the Second Chat Window's rect (see "EllesmereUI host").
+-- Everything downstream (positioning, split, chrome, lock) works unchanged
+-- against that frame; the ElvUI-only bits (chat-tab height, RightChatDataPanel,
+-- the ">" toggle) find nothing under EUI and drop out.
+EmbedModule.HOSTS = { elvui = true, ellesmere = true }
 
 -- ===============================
 -- Module Defaults
@@ -69,6 +73,108 @@ local function GetElvUIRightPanel()
     end
   end
   return nil
+end
+
+-- ===============================
+-- EllesmereUI host
+-- ===============================
+-- NEVER SetParent an addon frame to a chat frame, and never anchor ours into
+-- its rect chain: EllesmereUIChat documents that an insecure frame parented
+-- to a Blizzard chat frame taints chat "from structure" (whispers/sends
+-- break in encounter lockdown). EUI places its own chat panel NUMERICALLY
+-- from the chat frame's rect for the same reason; so do we. A light ticker
+-- keeps the host on the window (moves, resizes, Unlock Mode, show/hide) and
+-- re-asserts the embed after Details' own ShowWindow (e.g. a Details data-bar
+-- toggle) resets its geometry and chrome.
+
+local IsEUI = function() return TokukoP.host == TokukoP.HOST_ELLESMERE end
+
+local euiHost        = nil
+local euiTicker      = nil
+local lastRect       = nil   -- "l,b,w,h" cache so we only re-place on change
+local PositionFrames -- forward declaration (defined under Positioning)
+local TryHideChrome  -- forward declaration (defined under Chrome hiding)
+
+local function GetEUIHost()
+  if not euiHost then
+    euiHost = CreateFrame("Frame", "TokukoPEmbedHost", UIParent)
+    euiHost:SetSize(1, 1)
+    euiHost:SetPoint("CENTER")
+    euiHost:Hide()
+  end
+  return euiHost
+end
+
+local function SecretRect(...)
+  local issecret = issecretvalue
+  if not issecret then return false end
+  for i = 1, select("#", ...) do
+    if issecret((select(i, ...))) then return true end
+  end
+  return false
+end
+
+-- Lay the host over the chat window's text rect. Returns true when placed.
+local function SyncEUIHost()
+  local host = GetEUIHost()
+  local CW = TokukoP.modules.ChatWindow
+  local cf = CW and CW.FindWindow and CW.FindWindow()
+  if not cf or cf == ChatFrame1 or cf.isDocked then
+    host:Hide(); lastRect = nil
+    return false
+  end
+  local l, b, w, h = cf:GetRect()
+  if not (l and b and w and h) or SecretRect(l, b, w, h) then return false end
+  local s = cf:GetEffectiveScale() / UIParent:GetEffectiveScale()
+  l, b, w, h = l * s, b * s, w * s, h * s
+  local key = string.format("%.1f,%.1f,%.1f,%.1f", l, b, w, h)
+  if key ~= lastRect then
+    lastRect = key
+    host:ClearAllPoints()
+    host:SetPoint("BOTTOMLEFT", UIParent, "BOTTOMLEFT", l, b)
+    host:SetSize(w, h)
+  end
+  host:SetShown(cf:IsShown())
+  return true
+end
+
+-- Details re-shown by something else (its own toggle, a data-bar broker)
+-- resets parent/anchors and chrome; put it back. Cheap checks only.
+local function ReassertMeter(frame)
+  if not frame then return end
+  local inst = frame._instance or frame.instance
+  if inst and inst.ativa == false then return end  -- hidden on purpose
+  local _, rel = frame:GetPoint(1)
+  if frame:GetParent() ~= euiHost or rel ~= euiHost then
+    frame:SetParent(euiHost)
+    PositionFrames()
+  end
+  if frame.titleBar and frame.titleBar.IsShown and frame.titleBar:IsShown() then
+    TryHideChrome(frame)
+  end
+end
+
+local function StartEUITicker(meters)
+  if euiTicker then return end
+  euiTicker = C_Timer.NewTicker(0.2, function()
+    SyncEUIHost()
+    local m1, m2 = meters()
+    ReassertMeter(m1)
+    ReassertMeter(m2)
+  end)
+end
+
+local function StopEUITicker()
+  if euiTicker then euiTicker:Cancel(); euiTicker = nil end
+end
+
+-- The panel the embed lives in for the current host.
+local function GetHostPanel()
+  if IsEUI() then
+    SyncEUIHost()
+    return GetEUIHost()
+  end
+  return GetElvUIRightPanel()
 end
 
 -- ===============================
@@ -162,7 +268,7 @@ end
 -- Positioning
 -- ===============================
 
-local function PositionFrames()
+function PositionFrames()
   if not panelFrame or not embedded then return end
   local db          = TokukoPDB.Embed
   local yOff, pw, ph = GetEmbedRect(panelFrame)
@@ -236,7 +342,7 @@ end
 -- Chrome hiding
 -- ===============================
 
-local function TryHideChrome(frame)
+function TryHideChrome(frame)
   if not frame then return end
   if frame.titleBar and frame.titleBar.Hide then frame.titleBar:Hide() end
   if frame.border  and frame.border.Hide  then frame.border:Hide()  end
@@ -330,9 +436,14 @@ local function DoEmbed()
     return
   end
 
-  panelFrame = panelFrame or GetElvUIRightPanel()
+  panelFrame = panelFrame or GetHostPanel()
   if not panelFrame then
     print("|cffff6600TokukoP Embed:|r Could not find ElvUI right chat panel. Is ElvUI loaded?")
+    return
+  end
+  if IsEUI() and not SyncEUIHost() then
+    print("|cffff6600TokukoP Embed:|r Second Chat Window not found or docked. "
+          .. "Set it up under Chat > Second Window first.")
     return
   end
 
@@ -400,6 +511,13 @@ local function DoEmbed()
   HookToggleButton()
   embedded = true
   metersVisible = true
+  if IsEUI() then
+    -- EUI's chat panel sits at the chat frame's strata; LOW Details frames
+    -- could land under it. MEDIUM keeps the meters above the panel paint.
+    if meterFrame1 then meterFrame1:SetFrameStrata("MEDIUM") end
+    if meterFrame2 then meterFrame2:SetFrameStrata("MEDIUM") end
+    StartEUITicker(function() return meterFrame1, meterFrame2 end)
+  end
   PositionFrames()
   StartRepositionTimer()
 end
@@ -407,6 +525,7 @@ end
 local function DoUnembed()
   if not embedded then return end
   embedded = false
+  StopEUITicker()
   if repositionTimer then repositionTimer:Cancel(); repositionTimer = nil end
 
   local function unembedFrame(frame)
@@ -540,7 +659,9 @@ end
 function EmbedModule.Initialize()
   TokukoPDB.Embed = TokukoPDB.Embed or {}
   TokukoP.MergeDefaults(TokukoPDB.Embed, EmbedModule.DEFAULTS)
-  panelFrame = GetElvUIRightPanel()
+  -- EUI host is created lazily at embed time (the chat window may not be
+  -- set up yet at login).
+  if not IsEUI() then panelFrame = GetElvUIRightPanel() end
 end
 
 -- Re-hide chrome and reposition after Details restores its own state.
@@ -575,7 +696,7 @@ end
 
 function EmbedModule.OnEvent(event, ...)
   if event == "PLAYER_ENTERING_WORLD" then
-    if not panelFrame then panelFrame = GetElvUIRightPanel() end
+    if not panelFrame and not IsEUI() then panelFrame = GetElvUIRightPanel() end
     C_Timer.After(1, function() HookToggleButton() end)
     local db = TokukoPDB.Embed
     if db and db.enabled then

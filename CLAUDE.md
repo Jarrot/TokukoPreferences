@@ -8,7 +8,7 @@ A modular WoW addon for **Midnight 12.x** built around ElvUI. Written in Lua.
 Core.lua              — namespace (TokukoP), SavedVariables (TokukoPDB), PLAYER_LOGIN init
 DrinkingModule.lua    — eating/drinking announcements to group chat
 TooltipModule.lua     — ElvUI tooltip cursor anchor switching
-EmbedModule.lua       — Details! embed into ElvUI right chat panel (main module)
+EmbedModule.lua       — Details! embed into ElvUI right chat panel, or under EllesmereUI into the Second Chat Window
 HealerManaModule.lua  — movable overlay listing group/raid healers sorted by mana (lowest first)
 CombatResModule.lua   — movable icons for battle-res charges + Shaman Reincarnation cooldown
 PetReminderModule.lua — flashing warning when a Hunter/Warlock/Unholy DK has no active pet
@@ -38,6 +38,16 @@ Load order: Core → DrinkingModule → TooltipModule → EmbedModule → Settin
 ```
 
 ## EmbedModule Architecture
+
+### EllesmereUI path (added 2026-10-06)
+- `HOSTS = { elvui, ellesmere }`. Under EUI `panelFrame` = **`TokukoPEmbedHost`**, an invisible UIParent child laid NUMERICALLY over the Second Chat Window's rect (`SyncEUIHost`, scale-converted, secret-guarded). NEVER parent/anchor Details to a chat frame — EllesmereUIChat documents that insecure children of chat frames taint chat structurally.
+- Everything else runs unchanged against the host: GetTabHeight/GetDataBarHeight return 0 (no tabs parented to it, no RightChatDataPanel), PositionFrames anchors to host bottom, `>` toggle hook finds nothing.
+- Meters set to MEDIUM strata under EUI (EUI's chat panel paints at the chat frame's strata).
+- 0.2s ticker while embedded under EUI: re-syncs host (window moves/resizes/Unlock Mode/hidden) and `ReassertMeter` — if Details' own ShowWindow (e.g. Jarrot's Details data-bar broker toggle) reset parent/anchor/chrome, put it back. Skips meters with `ativa == false` (hidden on purpose).
+- Refuses to embed when the window is missing/docked/ChatFrame1 (prints a pointer to Chat > Second Window).
+- Settings: EUI Chat row → "Details" tab (enable, hide OOC, window #1/#2, dual, split).
+
+### ElvUI path
 
 Embeds Details! windows into `RightChatPanel`. Key geometry:
 - `tabH` — chat tab strip height (~21px), detected via `ChatFrameNTab` parent check

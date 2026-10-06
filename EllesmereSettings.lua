@@ -286,6 +286,36 @@ local function ChatWindowPage()
   }
 end
 
+local function EmbedPage()
+  local db, EM = TokukoPDB.Embed, TokukoP.modules.Embed
+  local function notDual() return not db.dualEmbed end
+  local help = "Embed Details! windows into the Second Chat Window (set it up on the Second Window tab first).\n\n"
+    .. "/tpembed toggles the embed. Showing/hiding the meters themselves works with Details' own toggle (e.g. a Details data-bar plugin)."
+  return {
+    { header = "DETAILS EMBED", rows = {
+      Toggle("Enable", help,
+        function() return db.enabled end, function(v) EM.SetEnabled(v) end, WIDE_TIP),
+      Toggle("Hide Out of Combat", "Hide the meters out of combat, show them in combat. They stay embedded.",
+        function() return db.combatOnly end, function(v) EM.SetCombatOnly(v) end),
+    } },
+    { header = "WINDOWS", rows = {
+      Slider("Details Window #1", "Left window, or the only one when not dual.", 1, 5, 1,
+        function() return db.window1 or 1 end, function(v) db.window1 = v; EM.Reapply() end),
+      Toggle("Dual Window", "Embed two Details windows side by side.",
+        function() return db.dualEmbed end,
+        function(v) db.dualEmbed = v; EM.Reapply(); Refresh() end),
+      { type = "slider", text = "Details Window #2", tooltip = "Right window.", min = 1, max = 5, step = 1,
+        disabled = notDual,
+        getValue = function() return db.window2 or 2 end,
+        setValue = function(v) db.window2 = v; EM.Reapply() end },
+      { type = "slider", text = "Split (left %)", min = 20, max = 80, step = 1,
+        disabled = notDual,
+        getValue = function() return math.floor((db.splitRatio or 0.5) * 100 + 0.5) end,
+        setValue = function(v) db.splitRatio = v / 100; EM.Reposition() end },
+    } },
+  }
+end
+
 local function TooltipPage()
   local db = TokukoPDB.Tooltip
   return {
@@ -314,9 +344,10 @@ local ROWS = {
     description = "Whisper a player on pull countdown when nobody has a Soulstone.",
     pages = { { name = "Settings", module = "SoulstoneReminder", build = SoulstonePage } } },
   { key = "Chat", title = "Chat",
-    description = "Second chat window (Details host) and the chat edit box.",
+    description = "Second chat window, Details embed and the chat edit box.",
     pages = {
       { name = "Second Window", module = "ChatWindow", build = ChatWindowPage },
+      { name = "Details",       module = "Embed",      build = EmbedPage },
       { name = "Edit Box",      module = "EditBox",    build = EditBoxPage },
     } },
   { key = "Drinking", title = "Drinking",
