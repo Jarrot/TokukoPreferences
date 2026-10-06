@@ -176,9 +176,9 @@ Frame backdrop: `frame:SetTemplate("Default")`
 
 ## SpeedModule Notes
 
-- LDB data source `TokukoP: Speed` (add via an EUI data bar's LDB block, or any LDB display / ElvUI datatext). Text is just `NNN%`: the max speed for the current state — swim / skyriding forward speed / flight / run — over `BASE_MOVEMENT_SPEED` (7). Value only, no tooltip (Jarrot).
+- LDB data source `TokukoP: Speed` (add via an EUI data bar's LDB block, or any LDB display / ElvUI datatext). Text is just `NNN%`: the max speed for the current state — swim / flight (incl. skyriding) / run — over `BASE_MOVEMENT_SPEED` (7). Value only, no tooltip (Jarrot).
 - `GetUnitSpeed` can be **secret** in 12.x (LiteMount guards it; ElvUI's datatext uses AbbreviateNumbers instead of math). LibDataBroker's `__newindex` compares old/new with `==`, which throws on a secret — so secret readings are skipped (last value stays) and the secret check runs BEFORE any `== nil`. `GetGlidingInfo`'s isGliding is secret-checked too.
-- 0.25s ticker (swim/fly/glide transitions have no event); pushes to LDB only when the % changes.
+- 1s ticker (swim/fly transitions have no event); pushes to LDB only when the % changes. Skyriding counts as flying (flight max) — its live forward speed is CURRENT speed and changed constantly (Jarrot noticed), so not used.
 - No HOSTS gate, no settings.
 
 ## Git Branches
