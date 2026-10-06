@@ -71,7 +71,8 @@ local function BuildSections(parent, yOffset, sections)
   local W = EllesmereUI.Widgets
   local y = yOffset
   local _, h
-  for _, sec in ipairs(sections) do
+  for n, sec in ipairs(sections) do
+    if n > 1 and W.Spacer then _, h = W:Spacer(parent, y, 20); y = y - (h or 20) end
     _, h = W:SectionHeader(parent, sec.header, y); y = y - h
     local pending
     local function flush()
@@ -344,18 +345,22 @@ local ROWS = {
   { key = "General", title = "General",
     description = "Healer mana, battle res, Soulstone reminder, drinking announcements and tooltip anchoring.",
     pages = {
-      { name = "Healer Mana", module = "HealerMana",        build = HealerManaPage },
-      { name = "Combat Res",  module = "CombatRes",         build = CombatResPage },
-      { name = "Soulstone",   module = "SoulstoneReminder", build = SoulstonePage },
-      { name = "Drinking",    module = "Drinking",          build = DrinkingPage },
-      { name = "Tooltip",     module = "Tooltip",           build = TooltipPage },
+      { name = "Settings", modules = {
+        { module = "HealerMana",        title = "HEALER MANA",        build = HealerManaPage },
+        { module = "CombatRes",         title = "COMBAT RES",         build = CombatResPage },
+        { module = "SoulstoneReminder", title = "SOULSTONE REMINDER", build = SoulstonePage },
+        { module = "Drinking",          title = "DRINKING",           build = DrinkingPage },
+        { module = "Tooltip",           title = "TOOLTIP",            build = TooltipPage },
+      } },
     } },
   { key = "Chat", title = "Chat",
     description = "Second chat window, Details embed and the chat edit box.",
     pages = {
-      { name = "Second Window", module = "ChatWindow", build = ChatWindowPage },
-      { name = "Details",       module = "Embed",      build = EmbedPage },
-      { name = "Edit Box",      module = "EditBox",    build = EditBoxPage },
+      { name = "Settings", modules = {
+        { module = "ChatWindow", title = "SECOND CHAT WINDOW", build = ChatWindowPage },
+        { module = "Embed",      title = "DETAILS EMBED",      build = EmbedPage },
+        { module = "EditBox",    title = "CHAT EDIT BOX",      build = EditBoxPage },
+      } },
     } },
 }
 
@@ -372,9 +377,28 @@ function TokukoP.RegisterEllesmerePlugin()
   for _, row in ipairs(ROWS) do
     local names, builders = {}, {}
     for _, pg in ipairs(row.pages) do
-      if active[pg.module] then
+      -- Each module on the page = ONE header with all its settings under it
+      -- (its own sub-sections merged; EUI has a single header style).
+      local parts = {}
+      for _, m in ipairs(pg.modules) do
+        if active[m.module] then
+          local build, title = m.build, m.title
+          parts[#parts + 1] = function()
+            local rows = {}
+            for _, sec in ipairs(build()) do
+              for _, slot in ipairs(sec.rows) do rows[#rows + 1] = slot end
+            end
+            return { header = title, rows = rows }
+          end
+        end
+      end
+      if #parts > 0 then
         names[#names + 1] = pg.name
-        builders[pg.name] = pg.build
+        builders[pg.name] = function()
+          local sections = {}
+          for _, part in ipairs(parts) do sections[#sections + 1] = part() end
+          return sections
+        end
       end
     end
     if #names > 0 then
