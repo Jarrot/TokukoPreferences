@@ -8,6 +8,10 @@ merged to `main` (see "Releasing" in CLAUDE.md).
 
 ## [Unreleased]
 
+### Changed
+- **Soulstone Reminder**: new default player *Warlock* and message *GIVE SOMEONE SS PLEASE!*
+  (only for new installs - names and messages you have already set are kept).
+
 ## [1.0.1] - 2026-10-07
 
 ### Fixed

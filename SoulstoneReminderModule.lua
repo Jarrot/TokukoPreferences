@@ -22,8 +22,8 @@ local REPEAT_COOLDOWN = 20
 
 local DEFAULTS = {
   enabled    = true,
-  targetName = "Unstabler",
-  message    = "YOU STUPID? PUT SS NOW!",
+  targetName = "Warlock",
+  message    = "GIVE SOMEONE SS PLEASE!",
   onlyInRaid = true,   -- ignore 5-man / party countdowns
 }
 
