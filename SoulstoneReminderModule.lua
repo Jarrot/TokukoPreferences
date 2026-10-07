@@ -195,6 +195,85 @@ local function RunCheck(dryRun)
 end
 
 -- ===============================
+-- Caster report (/tpss) -- groundwork for multi-warlock support
+-- ===============================
+-- Can we tell WHICH warlock placed each Soulstone? AuraData.sourceUnit names
+-- the caster's unit, but in 12.x it can be a secret value for group members'
+-- auras even when the aura itself is readable (BliZzi_Interrupts documents
+-- this for party auras in M+). Out of combat in a raid is untested, so /tpss
+-- prints what it can see: every Soulstone with its caster (or why the caster
+-- is unknown), and every warlock in the group with whether theirs is out.
+-- Read-only; whispers nothing. Every value is secret-checked BEFORE any
+-- compare (comparing a secret taints the branch that uses the result).
+
+-- Plain string from a possibly-secret value, else nil.
+local function Plain(v)
+  if IsSecret(v) or type(v) ~= "string" or v == "" then return nil end
+  return v
+end
+
+-- Caster of the Soulstone on `unit`:
+--   "none"                      no Soulstone on the unit
+--   "unreadable"                aura data secret / API error
+--   "secret"                    Soulstone found, caster hidden
+--   "gone"                      caster unit given but no longer resolves
+--   "ok", name, casterUnit      caster known
+local function SoulstoneCaster(unit)
+  if not C_UnitAuras.GetUnitAuraBySpellID then return "unreadable" end
+  local ok, aura = pcall(C_UnitAuras.GetUnitAuraBySpellID, unit, SOULSTONE_SPELL_ID)
+  if not ok then return "unreadable" end
+  if aura == nil then return "none" end
+  if IsSecret(aura) then return "unreadable" end
+  local okSU, src = pcall(function() return aura.sourceUnit end)
+  if not okSU then return "secret" end
+  src = Plain(src)
+  if not src then return "secret" end
+  if not UnitExists(src) then return "gone" end
+  local name = Plain(GetUnitName(src, true))
+  if not name then return "secret" end
+  return "ok", name, src
+end
+
+local function IsWarlock(unit)
+  local okC, _, class = pcall(UnitClass, unit)
+  return okC and Plain(class) == "WARLOCK"
+end
+
+local function ReportCasters()
+  if not IsInGroup() then return end
+  if InCombatLockdown() then Say("caster report skipped - in combat"); return end
+  local warlocks, placed = {}, {}
+  local lines = {}
+  ForEachGroupUnit(function(unit)
+    if not UnitExists(unit) then return false end
+    local who = Plain(GetUnitName(unit, true)) or unit
+    if IsWarlock(unit) then warlocks[#warlocks + 1] = who end
+    local state, caster = SoulstoneCaster(unit)
+    if state == "ok" then
+      placed[caster] = true
+      lines[#lines + 1] = who .. " has SS from " .. caster
+    elseif state == "secret" then
+      lines[#lines + 1] = who .. " has SS, caster |cffff7f3fhidden (secret)|r"
+    elseif state == "gone" then
+      lines[#lines + 1] = who .. " has SS, caster not in group"
+    elseif state == "unreadable" then
+      lines[#lines + 1] = who .. ": |cffff7f3faura data unreadable|r"
+    end
+    return false
+  end)
+  Say("caster report (" .. (IsInRaid() and "raid" or "party") .. ", out of combat)")
+  if #lines == 0 then print("   no Soulstones in the group") end
+  for _, l in ipairs(lines) do print("   " .. l) end
+  if #warlocks == 0 then
+    print("   no warlocks in the group")
+  else
+    for _, w in ipairs(warlocks) do
+      print("   warlock " .. w .. ": " .. (placed[w] and "|cff00ff00SS out|r" or "no SS seen"))
+    end
+  end
+end
+
+-- ===============================
 -- Public API
 -- ===============================
 
@@ -227,8 +306,10 @@ end
 -- Slash Commands
 -- ===============================
 
--- /tpss — dry run: prints what the countdown check would do right now.
+-- /tpss — dry run: prints what the countdown check would do right now, then
+-- the caster report (who placed each Soulstone).
 SLASH_TPSS1 = "/tpss"
 SlashCmdList["TPSS"] = function()
   RunCheck(true)
+  ReportCasters()
 end

@@ -162,6 +162,7 @@ Frame backdrop: `frame:SetTemplate("Default")`
 - Soulstone buff = spell 20707 on the soulstoned unit. Scan uses `C_UnitAuras.GetUnitAuraBySpellID(unit, 20707)` (2-arg form, as EllesmereUIAuraBuffReminders uses it), falling back to a `GetAuraDataByIndex` HELPFUL walk. Group auras are readable **out of combat**; `C_Secrets.ShouldAurasBeSecret()` flips in combat in instanced content. A countdown is OOC by definition (DBM also ignores it in combat), so this is safe — but any secret/erroring result makes the check return **nil = don't whisper**, never a false accusation.
 - Whisper target is `GetUnitName(unit, true)` (`Name-Realm` cross-realm, `Name` same realm). Configured name is matched case-insensitively with any realm suffix stripped.
 - 20s repeat cooldown: countdowns get cancelled/re-sent.
+- **Multi-warlock (PLANNED, 2026-10-07)**: Jarrot wants support for several warlocks (then the single target-name setting goes away - presumably whisper each warlock in the group whose SS is not out). Depends on reading `AuraData.sourceUnit` of the 20707 aura, which 12.x can return SECRET for group auras (BliZzi_Interrupts PartyCooldowns.lua notes this for party auras in M+). `/tpss` now prints a caster report (`ReportCasters`) so Jarrot can test in a group with a warlock: per SS `from <name>` / `hidden (secret)` / `caster not in group` / `aura data unreadable`, and per warlock `SS out` / `no SS seen`. Decide the design from that result. Secret-check BEFORE any compare (`Plain()`).
 
 ## EditBoxModule Notes (EllesmereUI)
 

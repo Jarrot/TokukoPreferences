@@ -8,6 +8,11 @@ merged to `main` (see "Releasing" in CLAUDE.md).
 
 ## [Unreleased]
 
+### Added
+- **Soulstone Reminder**: `/tpss` also prints a caster report - every Soulstone in the
+  group with the warlock who placed it (or why that is hidden), and each warlock with
+  whether their Soulstone is out. Groundwork for multi-warlock support.
+
 ### Changed
 - **Soulstone Reminder**: new default player *Warlock* and message *GIVE SOMEONE SS PLEASE!*
   (only for new installs - names and messages you have already set are kept).
