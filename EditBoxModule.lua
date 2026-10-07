@@ -344,10 +344,33 @@ end
 -- Public API
 -- ===============================
 
+-- Fade mode's post-hook on EUI's visibility pass can't be removed
+-- (hooksecurefunc is permanent). Once fade is no longer in use it is idle --
+-- `hidden` stays empty -- but it is still attached to EUI's code until a
+-- reload, so offer one. The only setting in the addon that wants a reload.
+StaticPopupDialogs["TOKUKOP_RELOAD_FADE_HOOK"] = {
+  text = "TokukoPreferences: Fade Data Bars left a hook in EllesmereUI's data bar code. "
+    .. "It does nothing now, but only a reload removes it.\n\nReload now?",
+  button1 = RELOADUI or "Reload UI",
+  button2 = LATER or "Later",
+  OnAccept = function() ReloadUI() end,
+  timeout = 0,
+  whileDead = true,
+  hideOnEscape = true,
+  preferredIndex = 3,
+}
+
+local function OfferReloadIfHooked()
+  if fadeHooked and not (db.enabled and db.mode == "fade") then
+    StaticPopup_Show("TOKUKOP_RELOAD_FADE_HOOK")
+  end
+end
+
 -- Settings toggle: turning off while typing gives the bar back immediately.
 function EditBoxModule.SetEnabled(v)
   db.enabled = v
   if not v then RestoreAll() end
+  OfferReloadIfHooked()
 end
 
 -- Switching mode mid-typing: undo the old mode; the new one applies on the
@@ -355,6 +378,7 @@ end
 function EditBoxModule.SetMode(v)
   db.mode = v
   RestoreAll()
+  OfferReloadIfHooked()
 end
 
 -- Colour / opacity change: repaint the backdrops.

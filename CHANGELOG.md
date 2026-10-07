@@ -18,6 +18,8 @@ merged to `main` (see "Releasing" in CLAUDE.md).
 - **Edit Box** settings: the Mode tooltip now warns that **Fade Data Bars** hooks into
   EllesmereUI's internal data bar code (an EUI update can break it); Cover mode does not.
   The two "Match…" options note that they read EUI internals.
+- **Edit Box**: switching away from Fade Data Bars (or turning the feature off) after
+  fade was used offers a reload, the only way to remove its EUI hook.
 
 ## [1.0.0] - 2026-10-07
 

@@ -1087,7 +1087,7 @@ function TokukoP.EditBoxModeHelpText()
   return GOLD .. "Cover Bars with Background|r - our own background over the bars. Does not touch EllesmereUI's code.\n\n"
     .. GOLD .. "Fade Data Bars|r - fades the bars instead.\n"
     .. WARN .. "Warning: hooks into EllesmereUI's internal data bar code (not part of its plugin API). "
-    .. "An EUI update can break it, and EUI asks addons not to do this. Once used, the hook stays in place (idle) until /reload.|r"
+    .. "An EUI update can break it, and EUI asks addons not to do this. Once used, the hook stays (idle) until a reload - switching away from Fade offers one.|r"
 end
 
 function TokukoP.ChatWindowHelpText()
