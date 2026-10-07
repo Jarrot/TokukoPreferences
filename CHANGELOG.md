@@ -8,11 +8,15 @@ merged to `main` (see "Releasing" in CLAUDE.md).
 
 ## [Unreleased]
 
+## [1.0.1] - 2026-10-07
+
 ### Fixed
 - **Second Chat Window**: now gets the same border as the main chat. EllesmereUI draws
   its chat border (Border Thickness / colour / texture) around the main chat only, so
   the second window had none. New **Match Main Chat Border** toggle (on by default).
   Follows EUI border changes when the EUI settings panel closes - no reload needed.
+- **Second Chat Window**: *Size Like Main Chat* no longer jumps a hand-dragged window
+  back to its last slider position; it keeps the window where it is.
 
 ### Changed
 - **Edit Box** settings: the Mode tooltip now warns that **Fade Data Bars** hooks into
@@ -22,8 +26,6 @@ merged to `main` (see "Releasing" in CLAUDE.md).
   fade was used offers a reload, the only way to remove its EUI hook.
 - **Second Chat Window** shortcuts renamed so it is clear they only change the second
   window: *Size Like Main Chat* (Copy), *Mirror Main Chat Position*, *Keep Current Position*.
-- **Second Chat Window**: *Size Like Main Chat* no longer jumps a hand-dragged window
-  back to its last slider position; it keeps the window where it is.
 
 ## [1.0.0] - 2026-10-07
 
@@ -65,5 +67,6 @@ both are loaded). Everything that worked under ElvUI keeps working the same way.
 ### Fixed
 - Long font lists in settings dropdowns now scroll.
 
-[Unreleased]: https://github.com/Jarrot/TokukoPreferences/compare/v1.0.0...dev
+[Unreleased]: https://github.com/Jarrot/TokukoPreferences/compare/v1.0.1...dev
+[1.0.1]: https://github.com/Jarrot/TokukoPreferences/releases/tag/v1.0.1
 [1.0.0]: https://github.com/Jarrot/TokukoPreferences/releases/tag/v1.0.0
