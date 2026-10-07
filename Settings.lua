@@ -1007,7 +1007,7 @@ local function BuildFallbackWindow()
     MakeCheckbox(c, "Enable", TokukoP.ChatWindowHelpText(),
       function() return cdb.enabled end,
       function(v) cdb.enabled = v; CW.Apply() end, y); y = y - 30
-    MakeEditBox(c, "Chat Window Name:", "Tab name of the undocked chat window to size and place.",
+    MakeEditBox(c, "Chat Window Name:", "Tab name of the undocked chat window to size and place.\n\nThis setting is shared by all your characters, but chat windows are saved per character by WoW. Give the window the same tab name on every character (right-click the tab > Rename), and undock it, or nothing happens on that character.",
       function() return cdb.windowName end,
       function(v) cdb.windowName = v; CW.Apply() end, y); y = y - 52
     MakeCheckbox(c, "Match Main Chat Border", "Give this window the same border EUI draws around the main chat. Updates when you close the EUI settings after changing the border. Reads EllesmereUI internals (no hooks); an EUI update may stop it working.",

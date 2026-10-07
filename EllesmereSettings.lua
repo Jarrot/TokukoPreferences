@@ -60,9 +60,9 @@ local function Color(text, tooltip, getTbl, onSet, disabled)
 end
 
 -- Free text: full-width row (pass as a lone slot) with a wide box.
-local function Input(text, tooltip, get, set)
-  return { type = "input", text = text, tooltip = tooltip, inputStyle = "popup", inputWidth = 320,
-           getValue = get, setValue = set }
+local function Input(text, tooltip, get, set, tooltipOpts)
+  return { type = "input", text = text, tooltip = tooltip, tooltipOpts = tooltipOpts,
+           inputStyle = "popup", inputWidth = 320, getValue = get, setValue = set }
 end
 
 -- Lays out { header = "...", rows = { slot, slot, ... } } sections. Slots are
@@ -271,8 +271,8 @@ local function ChatWindowPage()
       -- Tooltip as a function: the status line is re-evaluated on every hover.
       Toggle("Enable", TokukoP.ChatWindowHelpText,
         function() return db.enabled end, function(v) db.enabled = v; apply() end, WIDE_TIP),
-      Input("Chat Window Name", "Tab name of the undocked chat window to size and place.",
-        function() return db.windowName end, function(v) db.windowName = v; apply() end),
+      Input("Chat Window Name", "Tab name of the undocked chat window to size and place.\n\nThis setting is shared by all your characters, but chat windows are saved per character by WoW. Give the window the same tab name on every character (right-click the tab > Rename), and undock it, or nothing happens on that character.",
+        function() return db.windowName end, function(v) db.windowName = v; apply() end, WIDE_TIP),
       Toggle("Match Main Chat Border", "EUI draws the Chat border (Border Thickness, colour, texture) around the main chat only. On: give this window the same border.\n\nUpdates when you close the EUI settings after changing the border. Reads EllesmereUI internals (no hooks); an EUI update may stop it working.",
         function() return db.matchBorder end, function(v) db.matchBorder = v; CW.ApplyBorder() end, WIDE_TIP),
     } },
