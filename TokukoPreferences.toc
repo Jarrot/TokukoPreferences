@@ -2,7 +2,7 @@
 ## Title: TokukoPreferences
 ## Notes: Modular preferences addon for various WoW quality-of-life features
 ## Author: Jarrot
-## Version: @project-version@
+## Version: 1.0.0
 ## SavedVariables: TokukoPDB
 ## OptionalDeps: ElvUI, EllesmereUI
 

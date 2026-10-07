@@ -190,7 +190,20 @@ Frame backdrop: `frame:SetTemplate("Default")`
 
 ## Git Branches
 
-- `main` — stable
+- `main` — stable, released versions only
 - `dev` — work in progress
 
-Always work on `dev`, merge to `main` when done.
+Always work on `dev`, merge to `main` when releasing.
+
+## Versioning & Releasing
+
+- Versions are `MAJOR.MINOR.PATCH` (PATCH = fixes, MINOR = new features, MAJOR = big/breaking). Started at **1.0.0** on 2026-10-07 (first versioned release = the EllesmereUI work).
+- The version lives in `TokukoPreferences.toc` (`## Version: x.y.z`) — a real number, NOT `@project-version@` (no packager; Jarrot installs from git via symlink).
+- `CHANGELOG.md` (Keep a Changelog style): every user-visible change on `dev` gets a line under **[Unreleased]** in *Added / Changed / Fixed*, written for the player, not the programmer. Add it in the same commit as the change.
+- **Release** (only when Jarrot asks):
+  1. Pick the number; move `[Unreleased]` entries under `## [x.y.z] - YYYY-MM-DD`, leave an empty `[Unreleased]`, update the compare/tag links at the bottom.
+  2. Bump `## Version:` in the TOC. Commit on `dev` (`release: vX.Y.Z`), push `dev`.
+  3. `git checkout main && git merge --ff-only dev` (fall back to a merge commit if it can't fast-forward), push `main`.
+  4. `git tag -a vX.Y.Z -m "vX.Y.Z"` on that commit, `git push origin vX.Y.Z`.
+  5. `gh release create vX.Y.Z --title "vX.Y.Z" --notes-file <that version's changelog section>` — the repo is **public**.
+  6. Back to `dev`.

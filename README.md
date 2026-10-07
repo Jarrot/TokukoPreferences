@@ -129,6 +129,10 @@ Available commands:
 - Requires Details! damage meter (for embed feature)
 - Skada: not supported (unmaintained in 12.0)
 
+## Versions
+
+Released versions are tagged (`v1.0.0`, …) with notes on the [Releases](https://github.com/Jarrot/TokukoPreferences/releases) page; the full history is in [CHANGELOG.md](CHANGELOG.md). The installed version shows in WoW's addon list.
+
 ## Author
 
 Jarrot — developed entirely through conversation with [Claude Code](https://claude.com/claude-code)
