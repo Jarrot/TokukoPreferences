@@ -273,7 +273,7 @@ local function ChatWindowPage()
         function() return db.enabled end, function(v) db.enabled = v; apply() end, WIDE_TIP),
       Input("Chat Window Name", "Tab name of the undocked chat window to size and place.",
         function() return db.windowName end, function(v) db.windowName = v; apply() end),
-      Toggle("Match Main Chat Border", "EUI draws the Chat border (Border Thickness, colour, texture) around the main chat only. On: give this window the same border.\n\nFollows EUI border changes after a /reload. Reads EllesmereUI internals (no hooks); an EUI update may stop it working.",
+      Toggle("Match Main Chat Border", "EUI draws the Chat border (Border Thickness, colour, texture) around the main chat only. On: give this window the same border.\n\nUpdates when you close the EUI settings after changing the border. Reads EllesmereUI internals (no hooks); an EUI update may stop it working.",
         function() return db.matchBorder end, function(v) db.matchBorder = v; CW.ApplyBorder() end, WIDE_TIP),
     } },
     { header = "SIZE & POSITION", rows = {

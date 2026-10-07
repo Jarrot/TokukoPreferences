@@ -134,8 +134,9 @@ end
 -- the chat profile. Parented to that background, so it shows/hides, fades
 -- and follows the panel host with it -- EUI keeps the background in sync.
 -- Reads EUI internals (chat profile, per-frame data); guarded, and does
--- nothing if they move. Restyled on our setting changes and at login, so an
--- EUI border change shows here after the next /reload or settings change.
+-- nothing if they move. Restyled on our setting changes, at login, and when
+-- the EUI settings panel closes (public EllesmereUI:RegisterOnHide) -- the
+-- only place EUI's border settings change -- so no reload is needed.
 
 local BORDER_SIZES = { none = 0, thin = 1, normal = 2, heavy = 3, strong = 4 }
 
@@ -402,6 +403,10 @@ function ChatWindowModule.Initialize()
   -- Registered once; isHidden() keeps the mover away until the window is
   -- enabled and found, and is re-read whenever Unlock Mode opens.
   ChatWindowModule.RegisterUnlock()
+  -- EUI border edits happen in its settings panel: re-copy on close.
+  if EllesmereUI and EllesmereUI.RegisterOnHide then
+    EllesmereUI:RegisterOnHide(ChatWindowModule.ApplyBorder)
+  end
 end
 
 function ChatWindowModule.RegisterEvents(frame)

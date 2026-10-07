@@ -12,7 +12,7 @@ merged to `main` (see "Releasing" in CLAUDE.md).
 - **Second Chat Window**: now gets the same border as the main chat. EllesmereUI draws
   its chat border (Border Thickness / colour / texture) around the main chat only, so
   the second window had none. New **Match Main Chat Border** toggle (on by default).
-  Follows EUI border changes after a `/reload`.
+  Follows EUI border changes when the EUI settings panel closes - no reload needed.
 
 ### Changed
 - **Edit Box** settings: the Mode tooltip now warns that **Fade Data Bars** hooks into

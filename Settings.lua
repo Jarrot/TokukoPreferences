@@ -1010,7 +1010,7 @@ local function BuildFallbackWindow()
     MakeEditBox(c, "Chat Window Name:", "Tab name of the undocked chat window to size and place.",
       function() return cdb.windowName end,
       function(v) cdb.windowName = v; CW.Apply() end, y); y = y - 52
-    MakeCheckbox(c, "Match Main Chat Border", "Give this window the same border EUI draws around the main chat. Follows EUI border changes after a /reload. Reads EllesmereUI internals (no hooks); an EUI update may stop it working.",
+    MakeCheckbox(c, "Match Main Chat Border", "Give this window the same border EUI draws around the main chat. Updates when you close the EUI settings after changing the border. Reads EllesmereUI internals (no hooks); an EUI update may stop it working.",
       function() return cdb.matchBorder end,
       function(v) cdb.matchBorder = v; CW.ApplyBorder() end, y); y = y - 30
     MakeSlider(c, "Width", nil, 100, screenW, 1,
