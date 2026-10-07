@@ -353,10 +353,15 @@ end
 -- Settings helpers (buttons)
 -- ===============================
 
--- Width/height of the main chat window.
+-- Width/height of the main chat window, keeping the window where it is.
+-- Capture first: after a hand drag our x/y are stale (the drag only writes
+-- Blizzard's store), and applying them would jump the window back to the
+-- last slider position. Grows/shrinks from its bottom-right corner.
+local Capture
 function ChatWindowModule.MatchMainSize()
   local w, h = ChatFrame1:GetSize()
   if not (w and h) then return end
+  Capture()
   db.width, db.height = math.floor(w + 0.5), math.floor(h + 0.5)
   ChatWindowModule.Apply()
 end
@@ -373,7 +378,7 @@ end
 
 -- Read wherever the window was dragged / resized to.
 -- Store the window's live rect (after a hand drag / resize) as our numbers.
-local function Capture()
+function Capture()
   local cf = ChatWindowModule.FindWindow()
   if not cf or cf == ChatFrame1 or cf.isDocked then return false end
   local r, b = cf:GetRight(), cf:GetBottom()

@@ -22,6 +22,8 @@ merged to `main` (see "Releasing" in CLAUDE.md).
   fade was used offers a reload, the only way to remove its EUI hook.
 - **Second Chat Window** shortcuts renamed so it is clear they only change the second
   window: *Size Like Main Chat* (Copy), *Mirror Main Chat Position*, *Keep Current Position*.
+- **Second Chat Window**: *Size Like Main Chat* no longer jumps a hand-dragged window
+  back to its last slider position; it keeps the window where it is.
 
 ## [1.0.0] - 2026-10-07
 
