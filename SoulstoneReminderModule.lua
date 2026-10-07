@@ -240,11 +240,14 @@ local function IsWarlock(unit)
 end
 
 local function ReportCasters()
-  if not IsInGroup() then return end
   if InCombatLockdown() then Say("caster report skipped - in combat"); return end
   local warlocks, placed = {}, {}
   local lines = {}
-  ForEachGroupUnit(function(unit)
+  -- Solo: just the player. Own auras are always readable, so this checks the
+  -- report itself, not whether group members' casters are secret.
+  local solo = not IsInGroup()
+  local each = solo and function(fn) fn("player") end or ForEachGroupUnit
+  each(function(unit)
     if not UnitExists(unit) then return false end
     local who = Plain(GetUnitName(unit, true)) or unit
     if IsWarlock(unit) then warlocks[#warlocks + 1] = who end
@@ -261,7 +264,7 @@ local function ReportCasters()
     end
     return false
   end)
-  Say("caster report (" .. (IsInRaid() and "raid" or "party") .. ", out of combat)")
+  Say("caster report (" .. (solo and "solo - own buffs only, not a real test" or IsInRaid() and "raid" or "party") .. ", out of combat)")
   if #lines == 0 then print("   no Soulstones in the group") end
   for _, l in ipairs(lines) do print("   " .. l) end
   if #warlocks == 0 then
