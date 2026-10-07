@@ -43,9 +43,9 @@ local function PercentSlider(text, tooltip, get, set, disabled)
   return s
 end
 
-local function Dropdown(text, tooltip, values, order, get, set)
-  return { type = "dropdown", text = text, tooltip = tooltip, values = values, order = order,
-           getValue = get, setValue = set }
+local function Dropdown(text, tooltip, values, order, get, set, tooltipOpts)
+  return { type = "dropdown", text = text, tooltip = tooltip, tooltipOpts = tooltipOpts,
+           values = values, order = order, getValue = get, setValue = set }
 end
 
 -- DB colour tables are { r, g, b }.
@@ -240,10 +240,10 @@ local function EditBoxPage()
       Toggle("Edit Box Over Data Bars", TokukoP.EditBoxHelpText(),
         function() return db.enabled end,
         function(v) EB.SetEnabled(v); Refresh() end, WIDE_TIP),
-      Dropdown("Mode", nil, EB.MODE_VALUES, EB.MODE_SORTING,
-        function() return db.mode end, function(v) EB.SetMode(v); Refresh() end),
+      Dropdown("Mode", TokukoP.EditBoxModeHelpText(), EB.MODE_VALUES, EB.MODE_SORTING,
+        function() return db.mode end, function(v) EB.SetMode(v); Refresh() end, WIDE_TIP),
       { type = "toggle", text = "Match Data Bar Look",
-        tooltip = "Cover mode: give each covered bar a copy of its own background - its Modern colour, or the EUI-style artwork and overlay. Follows changes to the bar's look.\n\nOff: use the colour and opacity below.",
+        tooltip = "Cover mode: give each covered bar a copy of its own background - its Modern colour, or the EUI-style artwork and overlay. Follows changes to the bar's look.\n\nOff: use the colour and opacity below.\n\nReads EllesmereUI internals (no hooks); an EUI update may stop it working - it then falls back to the colour below.",
         disabled = notCover,
         getValue = function() return db.matchBar end,
         setValue = function(v) db.matchBar = v; EB.RefreshCover(); Refresh() end },
@@ -273,6 +273,8 @@ local function ChatWindowPage()
         function() return db.enabled end, function(v) db.enabled = v; apply() end, WIDE_TIP),
       Input("Chat Window Name", "Tab name of the undocked chat window to size and place.",
         function() return db.windowName end, function(v) db.windowName = v; apply() end),
+      Toggle("Match Main Chat Border", "EUI draws the Chat border (Border Thickness, colour, texture) around the main chat only. On: give this window the same border.\n\nFollows EUI border changes after a /reload. Reads EllesmereUI internals (no hooks); an EUI update may stop it working.",
+        function() return db.matchBorder end, function(v) db.matchBorder = v; CW.ApplyBorder() end, WIDE_TIP),
     } },
     { header = "SIZE & POSITION", rows = {
       Slider("Width", nil, 100, screenW, 1,

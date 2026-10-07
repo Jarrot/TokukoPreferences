@@ -980,7 +980,7 @@ local function BuildFallbackWindow()
     MakeCheckbox(c, "Edit Box Over Data Bars", TokukoP.EditBoxHelpText(),
       function() return TokukoPDB.EditBox.enabled end,
       function(v) EB.SetEnabled(v) end, y); y = y - 28
-    MakeDropdown(c, "Mode", nil, EB.MODE_VALUES, EB.MODE_SORTING,
+    MakeDropdown(c, "Mode", TokukoP.EditBoxModeHelpText(), EB.MODE_VALUES, EB.MODE_SORTING,
       function() return TokukoPDB.EditBox.mode end,
       function(v) EB.SetMode(v) end, y); y = y - 44
     MakeCheckbox(c, "Match Data Bar Look", "Cover mode: copy each covered bar's own background (Modern colour or EUI-style artwork). Off: use the colour below.",
@@ -1010,6 +1010,9 @@ local function BuildFallbackWindow()
     MakeEditBox(c, "Chat Window Name:", "Tab name of the undocked chat window to size and place.",
       function() return cdb.windowName end,
       function(v) cdb.windowName = v; CW.Apply() end, y); y = y - 52
+    MakeCheckbox(c, "Match Main Chat Border", "Give this window the same border EUI draws around the main chat. Follows EUI border changes after a /reload. Reads EllesmereUI internals (no hooks); an EUI update may stop it working.",
+      function() return cdb.matchBorder end,
+      function(v) cdb.matchBorder = v; CW.ApplyBorder() end, y); y = y - 30
     MakeSlider(c, "Width", nil, 100, screenW, 1,
       function() return cdb.width end, function(v) cdb.width = v; CW.Apply() end, y); y = y - 42
     MakeSlider(c, "Height", nil, 50, screenH, 1,
@@ -1075,7 +1078,16 @@ function TokukoP.EditBoxHelpText()
   local GOLD = "|cffffd100"
   return "While typing in chat (Enter until Esc / send), keep the edit box on top of any data bar under it.\n\n"
     .. GOLD .. "Cover Bars with Background|r - puts a background exactly over each data bar under the edit box (by default a copy of the bar's own look). The edit box itself is not moved or resized.\n\n"
-    .. GOLD .. "Fade Data Bars|r - fades out every data bar the edit box overlaps, whole bar. Uses EllesmereUI internals, so an EUI update may break it."
+    .. GOLD .. "Fade Data Bars|r - fades out every data bar the edit box overlaps, whole bar. Hooks into EllesmereUI internals, so an EUI update may break it."
+end
+
+-- The Mode dropdown's tooltip: fade is the one mode that hooks EUI code.
+function TokukoP.EditBoxModeHelpText()
+  local GOLD, WARN = "|cffffd100", "|cffff7f3f"
+  return GOLD .. "Cover Bars with Background|r - our own background over the bars. Does not touch EllesmereUI's code.\n\n"
+    .. GOLD .. "Fade Data Bars|r - fades the bars instead.\n"
+    .. WARN .. "Warning: hooks into EllesmereUI's internal data bar code (not part of its plugin API). "
+    .. "An EUI update can break it, and EUI asks addons not to do this. Once used, the hook stays in place (idle) until /reload.|r"
 end
 
 function TokukoP.ChatWindowHelpText()

@@ -8,6 +8,17 @@ merged to `main` (see "Releasing" in CLAUDE.md).
 
 ## [Unreleased]
 
+### Fixed
+- **Second Chat Window**: now gets the same border as the main chat. EllesmereUI draws
+  its chat border (Border Thickness / colour / texture) around the main chat only, so
+  the second window had none. New **Match Main Chat Border** toggle (on by default).
+  Follows EUI border changes after a `/reload`.
+
+### Changed
+- **Edit Box** settings: the Mode tooltip now warns that **Fade Data Bars** hooks into
+  EllesmereUI's internal data bar code (an EUI update can break it); Cover mode does not.
+  The two "Match…" options note that they read EUI internals.
+
 ## [1.0.0] - 2026-10-07
 
 First versioned release. TokukoPreferences now works with **ElvUI or EllesmereUI**

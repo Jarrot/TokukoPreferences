@@ -43,6 +43,7 @@ local DEFAULTS = {
   height     = 180,
   x          = 40,         -- from the screen's RIGHT edge
   y          = 40,         -- from the screen's BOTTOM edge
+  matchBorder = true,      -- copy the main chat's panel border onto the window
 }
 
 local MIN_W, MIN_H = 100, 50
@@ -53,6 +54,7 @@ local MIN_W, MIN_H = 100, 50
 
 local db           = nil
 local pendingApply = false   -- an apply was requested in combat
+local border       = nil     -- our copy of EUI's chat panel border
 
 -- ===============================
 -- Helpers
@@ -121,10 +123,96 @@ local function NudgeEUIChat()
 end
 
 -- ===============================
+-- Panel border
+-- ===============================
+-- EUI's Chat "Border" setting (thickness / colour / texture) frames ONE panel:
+-- ns._chatPanelBorder, wrapped around ChatFrame1's background only. Every
+-- other chat window gets the background but no border, so the second window
+-- needs its own copy. Built the same way as EUI's (EllesmereUIChat.lua,
+-- ApplyExtendedBackground): a BackdropTemplate frame pinned to the window's
+-- EUI background, styled with the public EllesmereUI.ApplyBorderStyle from
+-- the chat profile. Parented to that background, so it shows/hides, fades
+-- and follows the panel host with it -- EUI keeps the background in sync.
+-- Reads EUI internals (chat profile, per-frame data); guarded, and does
+-- nothing if they move. Restyled on our setting changes and at login, so an
+-- EUI border change shows here after the next /reload or settings change.
+
+local BORDER_SIZES = { none = 0, thin = 1, normal = 2, heavy = 3, strong = 4 }
+
+local function HideBorder()
+  if border then border:Hide() end
+end
+
+local function ApplyBorderNow()
+  local cf = ChatWindowModule.FindWindow()
+  if not (db and db.enabled and db.matchBorder) or not cf or cf == ChatFrame1 or cf.isDocked then
+    return HideBorder()
+  end
+  local EUI = EllesmereUI
+  local ns = EUI and EUI._ModuleNS and EUI._ModuleNS.EllesmereUIChat
+  local ECHAT = ns and ns.ECHAT
+  local bg = EUI and EUI._chatCFD and EUI._chatCFD(cf).bg
+  if not (ECHAT and ECHAT.DB and bg and EUI.ApplyBorderStyle) then return HideBorder() end
+  -- Stock styles: Blizzard's own chat border is the border (EUI hides its own).
+  if ns.ChatStock and ns.ChatStock() then return HideBorder() end
+  local cfg = ECHAT.DB()
+
+  if not border then
+    border = CreateFrame("Frame", nil, bg, "BackdropTemplate")
+    border:EnableMouse(false)
+  elseif border:GetParent() ~= bg then
+    border:SetParent(bg)
+  end
+  border:ClearAllPoints()
+  border:SetAllPoints(bg)
+
+  -- Same strata / level rules as EUI's panel border.
+  local behind = cfg.panelBorderBehind == true
+  border:SetFrameStrata(behind and "BACKGROUND" or "MEDIUM")
+  local level = behind and 0 or math.max(96, math.min(98, cf:GetFrameLevel() + 20))
+  border:SetFrameLevel(level)
+
+  local thicknessKey = cfg.panelBorderThickness or "none"
+  local mode = cfg.panelBorderColorMode or "custom"
+  local color
+  if mode == "accent" and EUI.GetAccentColor then
+    local r, g, b = EUI.GetAccentColor()
+    color = { r = r, g = g, b = b }
+  elseif mode == "class" then
+    local _, class = UnitClass("player")
+    color = class and RAID_CLASS_COLORS[class] or { r = 1, g = 1, b = 1 }
+  else
+    color = cfg.panelBorderColor or { r = 1, g = 1, b = 1 }
+  end
+  local alpha = cfg.panelBorderOpacity
+  if alpha == nil then alpha = mode == "custom" and 0.18 or 0.5 end
+  local size = BORDER_SIZES[thicknessKey] or 1
+  local tex = cfg.panelBorderTexture or "solid"
+  local px = EUI.BorderPx and EUI.BorderPx(cfg.panelBorderThicknessPx, size, tex)
+  -- Shown first: the textured path does not re-show a frame we hid; a
+  -- thickness of "none" hides it again inside ApplyBorderStyle.
+  border:Show()
+  local ok = pcall(EUI.ApplyBorderStyle, border, size,
+    color.r, color.g, color.b, alpha, tex,
+    cfg.panelBorderOffsetX, cfg.panelBorderOffsetY,
+    cfg.panelBorderShiftX, cfg.panelBorderShiftY, "chat", thicknessKey, nil, px)
+  if not ok then return HideBorder() end
+  local PP = EUI.PP
+  local solid = PP and PP.GetBorders and PP.GetBorders(border)
+  if solid then solid:SetFrameLevel(level + (behind and 0 or 1)) end
+end
+
+-- After EUI has (re)placed the window's background.
+function ChatWindowModule.ApplyBorder()
+  C_Timer.After(0.1, ApplyBorderNow)
+end
+
+-- ===============================
 -- Apply
 -- ===============================
 
 local function ApplyNow()
+  ChatWindowModule.ApplyBorder()
   if not (db and db.enabled) then return end
   if InCombatLockdown() then pendingApply = true; return end
   local cf = ChatWindowModule.FindWindow()
@@ -318,10 +406,15 @@ end
 
 function ChatWindowModule.RegisterEvents(frame)
   frame:RegisterEvent("PLAYER_REGEN_ENABLED")
+  frame:RegisterEvent("PLAYER_ENTERING_WORLD")
 end
 
-function ChatWindowModule.OnEvent(event)
-  if event == "PLAYER_REGEN_ENABLED" and pendingApply then
+function ChatWindowModule.OnEvent(event, isInitialLogin, isReloadingUi)
+  -- Border only (style, not geometry): EUI skins the chat frames at login,
+  -- so give it a moment before reading the window's background.
+  if event == "PLAYER_ENTERING_WORLD" and (isInitialLogin or isReloadingUi) then
+    C_Timer.After(2, ApplyBorderNow)
+  elseif event == "PLAYER_REGEN_ENABLED" and pendingApply then
     pendingApply = false
     ChatWindowModule.Apply()
   end
