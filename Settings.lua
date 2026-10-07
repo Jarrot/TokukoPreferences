@@ -1022,9 +1022,9 @@ local function BuildFallbackWindow()
     MakeSlider(c, "Y (from bottom edge)", nil, 0, screenH, 1,
       function() return cdb.y end, function(v) cdb.y = v; CW.Apply() end, y); y = y - 42
     -- Buttons change the DB behind the sliders; reopen /tp to see new values.
-    MakeButton(c, "Match Main Size", "Copy the main chat window's width and height. Reopen /tp to see the new values.",
+    MakeButton(c, "Size Like Main", "Give this window the same width and height as the main chat. The main chat is not changed. Reopen /tp to see the new values.",
       function() CW.MatchMainSize() end, 20, y)
-    MakeButton(c, "Mirror Main Chat", "Same height from the bottom as the main chat, same distance from the right edge as the main chat has from the left. Reopen /tp to see the new values.",
+    MakeButton(c, "Mirror Main Chat", "Place this window opposite the main chat: same height from the bottom, same distance from the right edge as the main chat has from the left. The main chat is not changed. Reopen /tp to see the new values.",
       function() CW.MirrorMain() end, 134, y)
     MakeButton(c, "Use Current", "Read the window's current position and size (after dragging or resizing it by hand). Reopen /tp to see the new values.",
       function() CW.UseCurrent() end, 248, y); y = y - 32

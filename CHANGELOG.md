@@ -20,6 +20,8 @@ merged to `main` (see "Releasing" in CLAUDE.md).
   The two "Match…" options note that they read EUI internals.
 - **Edit Box**: switching away from Fade Data Bars (or turning the feature off) after
   fade was used offers a reload, the only way to remove its EUI hook.
+- **Second Chat Window** shortcuts renamed so it is clear they only change the second
+  window: *Size Like Main Chat* (Copy), *Mirror Main Chat Position*, *Keep Current Position*.
 
 ## [1.0.0] - 2026-10-07
 

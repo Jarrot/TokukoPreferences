@@ -287,11 +287,11 @@ local function ChatWindowPage()
         function() return db.y end, function(v) db.y = v; apply() end),
     } },
     { header = "SHORTCUTS", rows = {
-      Button("Main Chat Size", "Match", "Copy the main chat window's width and height.",
+      Button("Size Like Main Chat", "Copy", "Give this window the same width and height as the main chat.\n\nThe main chat is not changed.",
         then_refresh(CW.MatchMainSize)),
-      Button("Mirror Main Chat", "Mirror", "Same height from the bottom as the main chat, and the same distance from the right edge as the main chat has from the left.",
+      Button("Mirror Main Chat Position", "Mirror", "Place this window opposite the main chat: same height from the bottom, and the same distance from the right edge as the main chat has from the left.\n\nThe main chat is not changed.",
         then_refresh(CW.MirrorMain)),
-      Button("Current Position", "Use Current", "Read the window's current position and size, after dragging or resizing it by hand.",
+      Button("Keep Current Position", "Use Current", "Save where this window is now (after dragging or resizing it by hand) into the sliders above.",
         then_refresh(CW.UseCurrent)),
     } },
   }

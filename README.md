@@ -70,7 +70,7 @@ Whispers a chosen player when a pull countdown starts and nobody in the raid has
 EllesmereUI styles every chat window the same but has no size/position settings — this adds them for one free-floating (undocked) chat window, the EllesmereUI counterpart of ElvUI's right chat panel and the host for the Details embed.
 
 - **Setup (once, by hand):** right-click the General tab → New Window (e.g. `Details`), drag its tab off to undock it, and untick all its messages/channels
-- Exact Width / Height / X (from the right edge) / Y (from the bottom edge), plus **Match** (copy the main chat's size), **Mirror** (mirror the main chat's position) and **Use Current** (read a hand-dragged position)
+- Exact Width / Height / X (from the right edge) / Y (from the bottom edge), plus **Size Like Main Chat** (copy the main chat's size onto this window), **Mirror Main Chat Position** (place it opposite the main chat) and **Keep Current Position** (save a hand-dragged position). None of them change the main chat
 - Movable and resizable in EllesmereUI's Unlock Mode as **Second Chat**
 - Applied only when a setting changes, and saved into Blizzard's own chat-window store, so Blizzard restores it at every login — nothing re-applied or checked afterwards
 - Never resizes the chat frame directly and never creates/docks windows (both taint chat in encounters); sizing uses two corner anchors, the same technique EllesmereUI uses for the main chat
