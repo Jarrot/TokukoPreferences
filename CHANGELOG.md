@@ -16,8 +16,6 @@ merged to `main` (see "Releasing" in CLAUDE.md).
 ### Changed
 - **Second Chat Window**: the *Chat Window Name* tooltip explains that the name is shared
   by all characters, while chat windows are per character - use the same tab name on each.
-
-### Changed
 - **Soulstone Reminder**: new default player *Warlock* and message *GIVE SOMEONE SS PLEASE!*
   (only for new installs - names and messages you have already set are kept).
 
