@@ -234,6 +234,7 @@ end
 local function EditBoxPage()
   local db, EB = TokukoPDB.EditBox, TokukoP.modules.EditBox
   local function notCover() return not db.enabled or db.mode ~= "cover" end
+  local function notOwnColour() return notCover() or db.matchBar end
   return {
     { header = "CHAT EDIT BOX", rows = {
       Toggle("Edit Box Over Data Bars", TokukoP.EditBoxHelpText(),
@@ -241,10 +242,15 @@ local function EditBoxPage()
         function(v) EB.SetEnabled(v); Refresh() end, WIDE_TIP),
       Dropdown("Mode", nil, EB.MODE_VALUES, EB.MODE_SORTING,
         function() return db.mode end, function(v) EB.SetMode(v); Refresh() end),
-      Color("Background Colour", "Cover mode only.", function() return db.bgColor end,
-        EB.RefreshCover, notCover),
-      PercentSlider("Background Opacity", "Cover mode only.",
-        function() return db.bgAlpha end, function(v) db.bgAlpha = v; EB.RefreshCover() end, notCover),
+      { type = "toggle", text = "Match Data Bar Look",
+        tooltip = "Cover mode: give each covered bar a copy of its own background - its Modern colour, or the EUI-style artwork and overlay. Follows changes to the bar's look.\n\nOff: use the colour and opacity below.",
+        disabled = notCover,
+        getValue = function() return db.matchBar end,
+        setValue = function(v) db.matchBar = v; EB.RefreshCover(); Refresh() end },
+      Color("Background Colour", "Cover mode, with Match Data Bar Look off.", function() return db.bgColor end,
+        EB.RefreshCover, notOwnColour),
+      PercentSlider("Background Opacity", "Cover mode, with Match Data Bar Look off.",
+        function() return db.bgAlpha end, function(v) db.bgAlpha = v; EB.RefreshCover() end, notOwnColour),
     } },
   }
 end

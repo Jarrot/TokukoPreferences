@@ -983,14 +983,17 @@ local function BuildFallbackWindow()
     MakeDropdown(c, "Mode", nil, EB.MODE_VALUES, EB.MODE_SORTING,
       function() return TokukoPDB.EditBox.mode end,
       function(v) EB.SetMode(v) end, y); y = y - 44
-    MakeColorSwatch(c, "Background Colour", "Cover mode only.",
+    MakeCheckbox(c, "Match Data Bar Look", "Cover mode: copy each covered bar's own background (Modern colour or EUI-style artwork). Off: use the colour below.",
+      function() return TokukoPDB.EditBox.matchBar end,
+      function(v) TokukoPDB.EditBox.matchBar = v; EB.RefreshCover() end, y); y = y - 28
+    MakeColorSwatch(c, "Background Colour", "Cover mode, with Match Data Bar Look off.",
       function() return TokukoPDB.EditBox.bgColor end,
       function(r, g, b)
         local col = TokukoPDB.EditBox.bgColor
         col.r, col.g, col.b = r, g, b
         EB.RefreshCover()
       end, y); y = y - 28
-    MakeSlider(c, "Background Alpha", "Cover mode only.", 0, 1, 0.05,
+    MakeSlider(c, "Background Alpha", "Cover mode, with Match Data Bar Look off.", 0, 1, 0.05,
       function() return TokukoPDB.EditBox.bgAlpha end,
       function(v) TokukoPDB.EditBox.bgAlpha = v; EB.RefreshCover() end, y, "%.2f"); y = y - 42
   end
@@ -1071,7 +1074,7 @@ end
 function TokukoP.EditBoxHelpText()
   local GOLD = "|cffffd100"
   return "While typing in chat (Enter until Esc / send), keep the edit box on top of any data bar under it.\n\n"
-    .. GOLD .. "Cover Bars with Background|r - puts a background exactly over each data bar under the edit box (pick the bar's colour to blend in). The edit box itself is not moved or resized.\n\n"
+    .. GOLD .. "Cover Bars with Background|r - puts a background exactly over each data bar under the edit box (by default a copy of the bar's own look). The edit box itself is not moved or resized.\n\n"
     .. GOLD .. "Fade Data Bars|r - fades out every data bar the edit box overlaps, whole bar. Uses EllesmereUI internals, so an EUI update may break it."
 end
 

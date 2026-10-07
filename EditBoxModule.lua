@@ -58,6 +58,9 @@ local DEFAULTS = {
   -- show through. Pick the bar's own colour to make it blend in.
   bgColor = { r = 0.03, g = 0.045, b = 0.05 },
   bgAlpha = 1,
+  -- Cover each bar with a copy of ITS OWN background (Modern colour, or the
+  -- EUI-style art + overlay) instead of bgColor/bgAlpha.
+  matchBar = true,
 }
 
 -- ===============================
@@ -112,6 +115,12 @@ end
 -- Shared: finding bars
 -- ===============================
 
+-- EllesmereUIDataBars' internal namespace (EUI internals -- used by fade
+-- mode and by cover mode's "Match Data Bar Look"; guarded everywhere).
+local function DataBarsNS()
+  return EllesmereUI and EllesmereUI._ModuleNS and EllesmereUI._ModuleNS[DATABARS_ADDON]
+end
+
 -- Screen-space rect (frames can sit under different effective scales).
 local function ScreenRect(f)
   local l, b, w, h = f:GetRect()
@@ -136,7 +145,38 @@ local function ApplyBackdropColor(bd)
   bd.tex:SetColorTexture(c.r, c.g, c.b, db.bgAlpha)
 end
 
-local function GetBackdrop(bar)
+-- "Match Data Bar Look": paint the backdrop with the covered bar's own theme
+-- via EllesmereUIDataBars' ns.MakePreviewBackdrop -- the helper its options
+-- use to render a bar preview with "the exact same recipe" as the real bar
+-- (Modern colour, or the EUI-style art + dim overlay). Drawn on a child frame
+-- of ours so switching back to a plain colour is just a hide. Bar ids come
+-- from the frame name. Bar Texture (Modern only) is not part of that recipe.
+-- Returns false when EUI's helper/bar config is unavailable (caller falls
+-- back to the plain colour).
+local function ApplyBarLook(bd, barId)
+  local ns = DataBarsNS()
+  if not (ns and ns.MakePreviewBackdrop and ns.GetBar) then return false end
+  local cfg = ns.GetBar(barId)
+  if not (cfg and cfg.theme) then return false end
+  if not bd.look then
+    bd.look = CreateFrame("Frame", nil, bd)
+    bd.look:SetAllPoints()
+  end
+  local ok = pcall(ns.MakePreviewBackdrop, bd.look, cfg.theme, false)
+  if not ok then return false end
+  bd.look:Show()
+  bd.tex:Hide()
+  return true
+end
+
+local function PaintBackdrop(bd)
+  if db.matchBar and bd.barId and ApplyBarLook(bd, bd.barId) then return end
+  if bd.look then bd.look:Hide() end
+  bd.tex:Show()
+  ApplyBackdropColor(bd)
+end
+
+local function GetBackdrop(bar, barId)
   local bd = backdrops[bar]
   if not bd then
     bd = CreateFrame("Frame", nil, UIParent)
@@ -146,6 +186,7 @@ local function GetBackdrop(bar)
     bd:EnableMouse(true)          -- swallow clicks meant for the hidden bar
     bd.tex = bd:CreateTexture(nil, "BACKGROUND")
     bd.tex:SetAllPoints()
+    bd.barId = barId
     bd:Hide()
     backdrops[bar] = bd
   end
@@ -162,8 +203,8 @@ local function CoverOn(eb)
   for id = 1, MAX_BAR_ID do
     local bar = _G[BAR_FRAME_PREFIX .. id]
     if bar and BarVisible(bar) and Overlaps(eb, bar) then
-      local bd = GetBackdrop(bar)
-      ApplyBackdropColor(bd)
+      local bd = GetBackdrop(bar, id)
+      PaintBackdrop(bd)   -- re-read every time: follows bar look changes
       bd:Show()
     end
   end
@@ -188,10 +229,6 @@ end
 -- ===============================
 -- Fade mode (EUI internals)
 -- ===============================
-
-local function DataBarsNS()
-  return EllesmereUI and EllesmereUI._ModuleNS and EllesmereUI._ModuleNS[DATABARS_ADDON]
-end
 
 -- Every live EllesmereUI data bar frame, via the module's own bar list.
 local function ForEachBarFrame(fn)
@@ -322,7 +359,7 @@ end
 
 -- Colour / opacity change: repaint the backdrops.
 function EditBoxModule.RefreshCover()
-  for _, bd in pairs(backdrops) do ApplyBackdropColor(bd) end
+  for _, bd in pairs(backdrops) do PaintBackdrop(bd) end
 end
 
 -- ===============================

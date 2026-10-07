@@ -78,7 +78,7 @@ EllesmereUI styles every chat window the same but has no size/position settings 
 ### Chat Edit Box (EllesmereUI only)
 Lets the chat edit box sit on top of a data bar, like ElvUI's edit box covering its datatext panel.
 
-- **Cover** (default): while you type, each data bar under the edit box gets a background laid exactly over it (colour + opacity configurable), with the edit box on top. The edit box itself is never moved or resized
+- **Cover** (default): while you type, each data bar under the edit box gets a background laid exactly over it, with the edit box on top — by default a copy of that bar's own look (**Match Data Bar Look**: its Modern colour or the EUI-style artwork), or a colour + opacity of your choice. The edit box itself is never moved or resized
 - **Fade**: while you type, any EllesmereUI data bar the edit box overlaps fades out, and its own Visibility setting is re-applied on close. Relies on EllesmereUI internals, so an EUI update could break it
 - Doesn't touch chat sending, so no taint in encounter/M+ chat lockdown
 
