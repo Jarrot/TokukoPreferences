@@ -15,9 +15,11 @@
 --     which EUI's plugin guide asks addons not to do -- may break on an EUI
 --     update.
 --
--- Keyed on edit box FOCUS, not Show/Hide: with chatStyle "classic" (default)
--- the box is hidden whenever inactive, but with "im" it stays shown at half
--- alpha, so Show/Hide would never give the bar back.
+-- "In use" = shown AND (focused OR holding typed text). Focus alone is not
+-- enough: clicking elsewhere mid-sentence drops focus but leaves the box open
+-- with its text, so the bar must stay covered until the box closes. Shown
+-- alone is not enough either: with chatStyle "im" an empty box stays shown at
+-- half alpha while inactive, so the bar has to come back on an empty blur.
 
 local ADDON_NAME = ...
 local TokukoP = TokukoP
@@ -83,12 +85,25 @@ local function IsPermanentEditBox(eb)
   return i ~= nil and i <= 10
 end
 
--- `except`: the box whose focus-lost callback is running, in case HasFocus
+-- Typed text still in the box. A secret text (BN whisper reply) counts as
+-- text: type() and issecretvalue() BEFORE any comparison -- comparing a
+-- secret string throws (EllesmereUIChat's send-capture notes the same).
+local function HasText(eb)
+  local text = eb:GetText()
+  if issecretvalue and issecretvalue(text) then return true end
+  return type(text) == "string" and text ~= ""
+end
+
+local function InUse(eb)
+  return eb:IsShown() and (eb:HasFocus() or HasText(eb))
+end
+
+-- `except`: the box whose blur/hide callback is running, in case HasFocus
 -- still reports true from inside its own OnEditFocusLost.
 local function AnyPermanentEditBoxActive(except)
   for i = 1, 10 do
     local eb = _G["ChatFrame" .. i .. "EditBox"]
-    if eb and eb ~= except and eb:IsShown() and eb:HasFocus() then return true end
+    if eb and eb ~= except and InUse(eb) then return true end
   end
   return false
 end
@@ -259,6 +274,7 @@ local function OnEditBoxActive(_, eb)
   end
 end
 
+-- The box closed (Esc / send / hidden): always give the bar back.
 local function OnEditBoxInactive(_, eb)
   if not IsPermanentEditBox(eb) then return end
   CoverOff(eb)
@@ -268,14 +284,22 @@ local function OnEditBoxInactive(_, eb)
   FadeRestore()
 end
 
+-- Focus lost (clicked elsewhere): only a sign the box is done when it is
+-- empty or closed. Half-written and still open -> keep the bar covered; the
+-- Hide callback restores it when the box finally closes.
+local function OnEditBoxBlur(_, eb)
+  if not IsPermanentEditBox(eb) then return end
+  if eb:IsShown() and HasText(eb) then return end
+  OnEditBoxInactive(_, eb)
+end
+
 local function InstallHooks()
   if hooked or not (EventRegistry and EventRegistry.RegisterCallback) then return end
   hooked = true
   -- Constant owner strings: re-registration replaces rather than stacks.
   EventRegistry:RegisterCallback("ChatFrame.OnEditBoxFocusGained", OnEditBoxActive, "TokukoP_EditBoxFocus")
-  EventRegistry:RegisterCallback("ChatFrame.OnEditBoxFocusLost", OnEditBoxInactive, "TokukoP_EditBoxBlur")
-  -- Belt-and-braces: a box hidden without a focus-lost (UI hidden, frame
-  -- closed) must still give the bar back.
+  EventRegistry:RegisterCallback("ChatFrame.OnEditBoxFocusLost", OnEditBoxBlur, "TokukoP_EditBoxBlur")
+  -- The box closing (Esc / send, or hidden without a blur) gives the bar back.
   EventRegistry:RegisterCallback("ChatFrame.OnEditBoxHide", OnEditBoxInactive, "TokukoP_EditBoxHide")
 end
 
