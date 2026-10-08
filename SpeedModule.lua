@@ -1,8 +1,9 @@
 -- SpeedModule.lua
 -- LibDataBroker data source "TokukoP: Speed": the character's current MAX
--- movement speed for its current state (ground / swimming / flying, which
--- includes skyriding) as a plain percentage, 100% = normal run speed -- not
--- the speed it is moving at right now.
+-- movement speed for its current state (ground / swimming / flying) as a
+-- plain percentage, 100% = normal run speed -- not the speed it is moving at
+-- right now. Exception: while skyriding it shows the LIVE forward speed (a
+-- skyriding mount has no fixed max; Jarrot wants the live number there).
 -- Add it to an EllesmereUI data bar (LDB block) or any LDB display / ElvUI
 -- datatext.
 --
@@ -23,7 +24,7 @@ TokukoP.modules.Speed = SpeedModule
 -- ===============================
 
 local LDB_NAME = "TokukoP: Speed"
-local TICK     = 1      -- swim / fly transitions have no event; once a second is plenty
+local TICK     = 0.25   -- swim / fly / glide transitions have no event; fast enough for live skyriding speed
 local BASE     = BASE_MOVEMENT_SPEED or 7  -- yards per second at 100%
 local ICON     = "Interface\\Icons\\Ability_Rogue_Sprint"
 
@@ -40,14 +41,25 @@ local IsSecret = issecretvalue or function() return false end
 -- Reading
 -- ===============================
 
--- Max speed for the current state in yards/s; nil when unreadable (secret).
+-- Gliding (skyriding): forward speed is all there is -- a skyriding mount has
+-- no fixed max. Returns isGliding, forwardSpeed (either may be nil).
+local function GlideInfo()
+  if not (C_PlayerInfo and C_PlayerInfo.GetGlidingInfo) then return false, nil end
+  local isGliding, _, forwardSpeed = C_PlayerInfo.GetGlidingInfo()
+  if IsSecret(isGliding) then isGliding = false end
+  return isGliding == true, forwardSpeed
+end
+
+-- Speed to show in yards/s: the max for the current state, or the live
+-- forward speed while skyriding; nil when unreadable (secret).
 local function ReadMaxSpeed()
-  -- Skyriding counts as flying: its live forward speed is the CURRENT speed
-  -- and changes constantly, which is not what this shows.
   local _, runSpeed, flightSpeed, swimSpeed = GetUnitSpeed("player")
+  local isGliding, forwardSpeed = GlideInfo()
   local speed
   if IsSwimming() then
     speed = swimSpeed
+  elseif isGliding then
+    speed = forwardSpeed
   elseif IsFlying() then
     speed = flightSpeed
   else

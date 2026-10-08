@@ -18,6 +18,8 @@ merged to `main` (see "Releasing" in CLAUDE.md).
   by all characters, while chat windows are per character - use the same tab name on each.
 - **Soulstone Reminder**: new default player *Warlock* and message *GIVE SOMEONE SS PLEASE!*
   (only for new installs - names and messages you have already set are kept).
+- **Movement Speed**: while skyriding it shows your live flying speed again (updates as
+  you speed up and slow down); everywhere else it still shows your max speed.
 
 ## [1.0.1] - 2026-10-07
 
