@@ -85,6 +85,9 @@ Lets the chat edit box sit on top of a data bar, like ElvUI's edit box covering 
 ### Movement Speed (data bar)
 A LibDataBroker item, **TokukoP: Speed**, showing your current max movement speed as a percentage (100% = normal run speed) — for whatever you're doing right now: running, swimming or flying. While skyriding it shows your live flying speed instead, since a skyriding mount has no fixed max. Updated four times a second. Add it to an EllesmereUI data bar (LDB block) or any LDB display.
 
+### Focus Click
+Middle-click the target frame to set that unit as your focus — the same as **Set Focus** in the frame's right-click menu, in one click. Works on the EllesmereUI and ElvUI target frames (not Blizzard's default one). A click-cast binding on middle-click (EUI click-casting or Clique) takes priority. Changes made in combat apply when combat ends.
+
 ### Tooltip
 Anchors the tooltip to your cursor when out of combat, snapping to the fixed anchor position during combat. Neither UI suite switches on combat by itself.
 

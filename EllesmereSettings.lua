@@ -346,6 +346,20 @@ local function TooltipPage()
   }
 end
 
+local FOCUS_TIP = "Middle-click the target frame to set that unit as your focus - the same as Set Focus in the right-click menu.\n\nA click-cast binding on middle-click (EUI click-casting or Clique) takes priority.\n\nChanges made in combat apply when combat ends."
+
+local function FocusClickPage()
+  local db = TokukoPDB.FocusClick
+  return {
+    { header = "FOCUS", rows = {
+      Toggle("Middle-Click Target Sets Focus", FOCUS_TIP,
+        function() return db.enabled end,
+        function(v) db.enabled = v; TokukoP.modules.FocusClick.ApplyNow() end,
+        WIDE_TIP),
+    } },
+  }
+end
+
 -- Sidebar rows. Each row is one EUI "module" with one or more page tabs;
 -- a tab whose `module` is not in TokukoP.activeModules is left out (its
 -- TokukoPDB sub-table does not exist), and a row with no tabs left is dropped.
@@ -353,7 +367,7 @@ end
 -- page per key.
 local ROWS = {
   { key = "General", title = "General",
-    description = "Healer mana, battle res, Soulstone reminder, drinking announcements and tooltip anchoring.",
+    description = "Healer mana, battle res, Soulstone reminder, drinking announcements, tooltip anchoring and middle-click focus.",
     pages = {
       { name = "Settings", modules = {
         { module = "HealerMana",        title = "HEALER MANA",        build = HealerManaPage },
@@ -361,6 +375,7 @@ local ROWS = {
         { module = "SoulstoneReminder", title = "SOULSTONE REMINDER", build = SoulstonePage },
         { module = "Drinking",          title = "DRINKING",           build = DrinkingPage },
         { module = "Tooltip",           title = "TOOLTIP",            build = TooltipPage },
+        { module = "FocusClick",        title = "FOCUS CLICK",        build = FocusClickPage },
       } },
     } },
   { key = "Chat", title = "Chat",

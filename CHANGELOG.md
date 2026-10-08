@@ -9,6 +9,8 @@ merged to `main` (see "Releasing" in CLAUDE.md).
 ## [Unreleased]
 
 ### Added
+- **Focus Click**: middle-click the target frame to set that unit as your focus (same as
+  *Set Focus* in its right-click menu). EllesmereUI and ElvUI target frames; on by default.
 - **Soulstone Reminder**: `/tpss` also prints a caster report - every Soulstone in the
   group with the warlock who placed it (or why that is hidden), and each warlock with
   whether their Soulstone is out. Groundwork for multi-warlock support.

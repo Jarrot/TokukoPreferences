@@ -508,6 +508,21 @@ local function InsertElvUIOptions()
         order = 22, type = "description", fontSize = "small",
         name = "Cursor anchored tooltip out of combat, fixed anchor in combat.",
       },
+
+      -- ── Focus Click ───────────────────────────────────────
+      focusClickHeader = {
+        order = 90, type = "header", name = "Focus Click",
+      },
+      focusClickEnabled = {
+        order = 91, type = "toggle", width = "full",
+        name = "Middle-Click Target Sets Focus",
+        desc = "Middle-click the target frame to set that unit as your focus - the same as Set Focus in the right-click menu.\nA click-cast binding on middle-click takes priority. Changes made in combat apply when combat ends.",
+        get  = function() return db.FocusClick and db.FocusClick.enabled end,
+        set  = function(_, v)
+          db.FocusClick.enabled = v
+          TokukoP.modules.FocusClick.ApplyNow()
+        end,
+      },
     },
   }
 end
@@ -1038,6 +1053,18 @@ local function BuildFallbackWindow()
       function(v)
         TokukoPDB.Tooltip.enabled = v
         if v then TokukoP.modules.Tooltip.ApplyNow() end
+      end, y); y = y - 28
+  end
+
+  if active.FocusClick then
+    MakeDivider(c, y); y = y - 14
+    MakeHeader(c, "Focus Click", y); y = y - 26
+    MakeCheckbox(c, "Middle-Click Target Sets Focus",
+      "Middle-click the target frame to set that unit as your focus -\nthe same as Set Focus in the right-click menu.\n\nA click-cast binding on middle-click takes priority.\nChanges made in combat apply when combat ends.",
+      function() return TokukoPDB.FocusClick and TokukoPDB.FocusClick.enabled end,
+      function(v)
+        TokukoPDB.FocusClick.enabled = v
+        TokukoP.modules.FocusClick.ApplyNow()
       end, y); y = y - 28
   end
 

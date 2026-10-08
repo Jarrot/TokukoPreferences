@@ -22,6 +22,7 @@ PetReminderModule.lua — flashing warning when a Hunter/Warlock/Unholy DK has n
 SoulstoneReminderModule.lua — whispers a configured player on pull countdown if nobody in the group has a Soulstone
 EditBoxModule.lua     — EllesmereUI only: keeps the active chat edit box on top of EUI data bars (cover/fade)
 ChatWindowModule.lua  — EllesmereUI only: exact size/position for an undocked chat window (Details host)
+FocusClickModule.lua  — ElvUI/EllesmereUI: middle-click on the target frame = Set Focus (secure /click proxy)
 SpeedModule.lua       — LibDataBroker source "TokukoP: Speed": current max movement speed in %, 100% = run speed
 Libs/                 — bundled LibStub, CallbackHandler-1.0, LibDataBroker-1.1 (EUI does not ship LDB)
 Settings.lua          — ElvUI AceConfig panel (/ec → Plugins → TokukoPreferences) + standalone /tp window
@@ -194,6 +195,14 @@ Frame backdrop: `frame:SetTemplate("Default")`
 - `GetUnitSpeed` can be **secret** in 12.x (LiteMount guards it; ElvUI's datatext uses AbbreviateNumbers instead of math). LibDataBroker's `__newindex` compares old/new with `==`, which throws on a secret — so secret readings are skipped (last value stays) and the secret check runs BEFORE any `== nil`. `GetGlidingInfo`'s isGliding is secret-checked too.
 - 0.25s ticker (swim/fly/glide transitions have no event); pushes to LDB only when the % changes. History: skyriding briefly showed the flight max (`f6461aa`, 1s tick) because the live speed "changed constantly" — Jarrot then wanted the live skyriding speed back; frequent updates while skyriding are fine.
 - No HOSTS gate, no settings.
+
+## FocusClickModule Notes
+
+- Middle-click on the target frame (`EllesmereUIUnitFrames_Target` / `ElvUF_Target`) sets focus. Blizzard's TargetFrame (host `none`) is deliberately not touched (taint risk) -> `HOSTS = { elvui, ellesmere }`.
+- Focus is protected (FocusUnit): only a secure click can do it, and attributes can only be written OOC (deferred to PLAYER_REGEN_ENABLED, also on toggle).
+- **12.x gotchas (from EUI's EllesmereUI_Kick.lua / ClickCast):** 12.0.7 silently drops raw actions on SecureUnitButtons unless a C_ClickBindings Interaction binding exists (only plain left-click target has one), so `*type3 = "focus"` on the frame would NOT work; 12.1 broke the `"click"` secure action (Blizzard typo). Working transport = frame `*type3 = "macro"`, `*macrotext3 = "/click TokukoPFocusProxy"`; proxy = hidden SecureActionButton child with `type1..5 = "focus"`, `useparent-unit`, `useOnKeyDown = false` -- same pattern as EUI's GetSecureTargetProxy.
+- Wildcard `*type3` on purpose: click-cast engines write `type3` / `shift-type3`, which win. Disabling only clears the attrs if `*macrotext3` is still ours.
+- Wired at Initialize and again at PLAYER_ENTERING_WORLD (EUI builds its frames inside its own PLAYER_LOGIN dispatch, order vs ours not guaranteed). EUI only creates the frame when it draws the target frame itself.
 
 ## Git Branches
 

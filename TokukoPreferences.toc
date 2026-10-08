@@ -25,6 +25,7 @@ SoulstoneReminderModule.lua
 EditBoxModule.lua
 ChatWindowModule.lua
 SpeedModule.lua
+FocusClickModule.lua
 
 # Settings (must load after modules)
 Settings.lua
