@@ -41,7 +41,7 @@ DebugModule.lua       — optional debug commands, commented out in TOC by defau
 ## TOC
 
 ```
-Interface: 120000, 120001, 120005
+Interface: 120000, 120001, 120005, 120100
 SavedVariables: TokukoPDB
 OptionalDeps: ElvUI, EllesmereUI   (their SavedVariables load before ours — TooltipModule relies on it)
 Load order: Libs (LibStub, CallbackHandler, LDB) → Core → modules → Settings → EllesmereSettings → DebugModule

@@ -16,6 +16,7 @@ merged to `main` (see "Releasing" in CLAUDE.md).
   whether their Soulstone is out. Groundwork for multi-warlock support.
 
 ### Changed
+- Marked compatible with WoW 12.1 (TOC Interface 120100), so it no longer shows as out of date.
 - **Second Chat Window**: the *Chat Window Name* tooltip explains that the name is shared
   by all characters, while chat windows are per character - use the same tab name on each.
 - **Soulstone Reminder**: new default player *Warlock* and message *GIVE SOMEONE SS PLEASE!*
