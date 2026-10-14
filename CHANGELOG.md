@@ -8,6 +8,8 @@ merged to `main` (see "Releasing" in CLAUDE.md).
 
 ## [Unreleased]
 
+## [1.1.0] - 2026-10-14
+
 ### Added
 - **Focus Click**: middle-click the target frame to set that unit as your focus (same as
   *Set Focus* in its right-click menu). EllesmereUI and ElvUI target frames; on by default.
@@ -83,6 +85,7 @@ both are loaded). Everything that worked under ElvUI keeps working the same way.
 ### Fixed
 - Long font lists in settings dropdowns now scroll.
 
-[Unreleased]: https://github.com/Jarrot/TokukoPreferences/compare/v1.0.1...dev
+[Unreleased]: https://github.com/Jarrot/TokukoPreferences/compare/v1.1.0...dev
+[1.1.0]: https://github.com/Jarrot/TokukoPreferences/releases/tag/v1.1.0
 [1.0.1]: https://github.com/Jarrot/TokukoPreferences/releases/tag/v1.0.1
 [1.0.0]: https://github.com/Jarrot/TokukoPreferences/releases/tag/v1.0.0
